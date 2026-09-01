@@ -17,6 +17,7 @@ import Policies from '@/pages/Policies';
 import PolicyDetail from '@/pages/PolicyDetail';
 import Claims from '@/pages/Claims';
 import ClaimDetail from '@/pages/ClaimDetail';
+import RightsCheck from '@/pages/RightsCheck';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -55,6 +56,7 @@ const AuthenticatedApp = () => {
         <Route path="/policies/:id" element={<PolicyDetail />} />
         <Route path="/claims" element={<Claims />} />
         <Route path="/claims/:id" element={<ClaimDetail />} />
+        <Route path="/rights-check" element={<RightsCheck />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

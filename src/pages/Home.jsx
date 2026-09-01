@@ -26,11 +26,6 @@ export default function Home() {
 
   const activeClaims = claims.filter((c) => c.status === "preparing" || c.status === "submitted").length;
 
-  const quickActions = [
-    { to: "/chat", label: "שאל את העוזר", desc: "שאלה על הפוליסה או התביעה בעברית פשוטה", icon: MessageCircle, color: "bg-primary" },
-    { to: "/policies", label: "הוסף פוליסה", desc: "נתח את הפוליסה וקבל הסבר ברור", icon: ShieldCheck, color: "bg-accent" },
-    { to: "/claims", label: "פתח תביעה", desc: "קבל צ׳קליסט ומכתבים מוכנים", icon: FolderKanban, color: "bg-emerald-600" }
-  ];
 
   return (
     <Layout>
@@ -45,7 +40,7 @@ export default function Home() {
             הזכות שלך, <span className="text-primary">ברורה ופשוטה</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
-            כאן תבין את הפוליסה שלך בלי מונחים מסובכים, תכין תביעה עם צ׳קליסט מסודר, ותקבל מכתבים מוכנים לשליחה – הכול בעברית פשוטה.
+            לא צריך לדעת ביטוח כדי לדעת מה מגיע לך. ספרו לנו מה קרה, ונזהה יחד אילו זכויות עשויות להיות רלוונטיות — בלי מונחים מסובכים ובלי לדעת מראש מה לתבוע.
           </p>
         </div>
 
@@ -56,27 +51,25 @@ export default function Home() {
           <StatCard label="סה״כ תביעות" value={loading ? "—" : claims.length} icon={FileText} />
         </div>
 
-        {/* Quick actions */}
-        <div className="grid sm:grid-cols-3 gap-4 mb-10">
-          {quickActions.map((a) => {
-            const Icon = a.icon;
-            return (
+        {/* Primary path */}
+        <div className="mb-10">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-primary to-primary/85 text-white p-7 lg:p-10 shadow-lg">
+            <div className="relative max-w-xl">
+              <h2 className="text-2xl lg:text-3xl font-heading font-bold mb-3 leading-tight">
+                לא צריך לדעת ביטוח — רק לספר מה קרה
+              </h2>
+              <p className="text-white/85 text-base lg:text-lg leading-relaxed mb-6">
+                נבנה יחד תמונה של מה שעברתם, נזהה אילו זכויות עשויות להיות רלוונטיות, ונכין את המסמכים. אתם רק עונים על שאלות פשוטות.
+              </p>
               <Link
-                key={a.to}
-                to={a.to}
-                className="group bg-card rounded-2xl border border-border p-5 hover:shadow-lg hover:border-primary/30 transition-all duration-300"
+                to="/rights-check"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white text-primary font-semibold hover:bg-white/90 transition-colors"
               >
-                <div className={`w-11 h-11 rounded-xl ${a.color} flex items-center justify-center mb-4 shadow-sm`}>
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                <h3 className="font-heading font-semibold text-lg mb-1 flex items-center gap-1">
-                  {a.label}
-                  <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all" />
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{a.desc}</p>
+                בדיקת הזכויות שלי
+                <ArrowLeft className="w-5 h-5" />
               </Link>
-            );
-          })}
+            </div>
+          </div>
         </div>
 
         {/* Recent claims */}

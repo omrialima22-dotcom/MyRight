@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, ArrowLeft, CalendarDays } from "lucide-react";
+import { ShieldCheck, ArrowLeft, CalendarDays, Search } from "lucide-react";
 
 export default function TransitionStep({ summary, timeline }) {
   return (
@@ -13,8 +13,11 @@ export default function TransitionStep({ summary, timeline }) {
       <h1 className="text-2xl lg:text-3xl font-heading font-bold mb-3 leading-tight">
         מעולה, עכשיו יש לנו תמונה טובה יותר של מה שעברת
       </h1>
+      <p className="text-muted-foreground text-base lg:text-lg leading-relaxed mb-2">
+        כדי לבדוק אילו זכויות עשויות להיות לך, אנחנו צריכים לראות אילו ביטוחים פרטיים היו לך בתקופה הרלוונטית.
+      </p>
       <p className="text-muted-foreground text-base lg:text-lg leading-relaxed mb-6">
-        עכשיו בואו נבדוק אילו ביטוחים היו לכם בתקופה הזאת, כדי שנוכל לזהות זכויות שאולי מגיעות לכם.
+        לא יודע אילו ביטוחים יש לך? זה בסדר — נלווה אותך שלב אחר שלב.
       </p>
 
       {summary && (
@@ -42,12 +45,20 @@ export default function TransitionStep({ summary, timeline }) {
         </div>
       )}
 
-      <Link to="/policies">
-        <Button size="lg" className="w-full h-12 text-base font-medium">
-          בדיקת הביטוחים שלי
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-      </Link>
+      <div className="space-y-3">
+        <Link to="/find-insurance">
+          <Button size="lg" className="w-full h-12 text-base font-medium">
+            <Search className="w-5 h-5 ml-2" />
+            בוא נמצא את הביטוחים שלי
+          </Button>
+        </Link>
+        <Link to="/find-insurance?skip=1">
+          <Button variant="outline" size="lg" className="w-full h-12 text-base font-medium">
+            כבר יש לי את הפוליסות
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }

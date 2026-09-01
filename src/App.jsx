@@ -18,6 +18,7 @@ import PolicyDetail from '@/pages/PolicyDetail';
 import Claims from '@/pages/Claims';
 import ClaimDetail from '@/pages/ClaimDetail';
 import RightsCheck from '@/pages/RightsCheck';
+import FindInsurance from '@/pages/FindInsurance';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
         <Route path="/claims" element={<Claims />} />
         <Route path="/claims/:id" element={<ClaimDetail />} />
         <Route path="/rights-check" element={<RightsCheck />} />
+        <Route path="/find-insurance" element={<FindInsurance />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

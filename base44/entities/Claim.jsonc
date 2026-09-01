@@ -1,0 +1,65 @@
+{
+  "name": "Claim",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "\u05db\u05d5\u05ea\u05e8\u05ea \u05d4\u05ea\u05d1\u05d9\u05e2\u05d4"
+    },
+    "description": {
+      "type": "string",
+      "title": "\u05ea\u05d9\u05d0\u05d5\u05e8 \u05d4\u05de\u05e7\u05e8\u05d4"
+    },
+    "policy_id": {
+      "type": "string",
+      "title": "\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4 \u05de\u05e7\u05d5\u05e9\u05e8\u05ea"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "preparing",
+        "submitted",
+        "approved",
+        "rejected"
+      ],
+      "title": "\u05e1\u05d8\u05d8\u05d5\u05e1",
+      "default": "draft"
+    },
+    "incident_date": {
+      "type": "string",
+      "format": "date",
+      "title": "\u05ea\u05d0\u05e8\u05d9\u05da \u05d4\u05d0\u05d9\u05e8\u05d5\u05e2"
+    },
+    "checklist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "\u05d8\u05e7\u05e1\u05d8"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "\u05d4\u05d5\u05e9\u05dc\u05dd",
+            "default": false
+          }
+        }
+      },
+      "title": "\u05e6'\u05e7\u05dc\u05d9\u05e1\u05d8 \u05de\u05e1\u05de\u05db\u05d9\u05dd \u05d5\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea"
+    },
+    "doctor_letter": {
+      "type": "string",
+      "title": "\u05de\u05db\u05ea\u05d1 \u05e8\u05d5\u05e4\u05d0"
+    },
+    "claim_letter": {
+      "type": "string",
+      "title": "\u05de\u05db\u05ea\u05d1 \u05ea\u05d1\u05d9\u05e2\u05d4 \u05dc\u05d7\u05d1\u05e8\u05ea \u05d4\u05d1\u05d9\u05d8\u05d5\u05d7"
+    }
+  },
+  "required": [
+    "title",
+    "description"
+  ]
+}

@@ -83,21 +83,18 @@ export default function EligibilityExplore() {
   const activeItem = items.find((it) => it.coverage_index === activeIndex);
   const activeState = states[activeIndex];
 
-  const handleAnswer = (question, answer) => {
-    setStates((prev) => {
-      const st = prev[activeIndex];
-      const answers = [...(st?.answers || []), { question: question.prompt, answer }];
-      return { ...prev, [activeIndex]: { ...st, answers } };
-    });
-  };
-
-  const evaluateMatch = async () => {
+  const evaluateMatch = async (answers) => {
     setEvaluating(true);
+    // Persist the confirmed answers so claim prep can reuse them.
+    setStates((prev) => ({
+      ...prev,
+      [activeIndex]: { ...prev[activeIndex], answers: answers || [] }
+    }));
     try {
       const coverage = policy.coverages[activeItem.coverage_index];
       const res = await base44.functions.invoke("checkEligibilityMatch", {
         coverage,
-        answers: activeState.answers,
+        answers: answers || [],
         event_summary: healthEvent?.summary || healthEvent?.story
       });
       const data = res.data || res;
@@ -238,9 +235,8 @@ export default function EligibilityExplore() {
         ) : (
           <CoverageCheckFlow
             item={activeItem}
-            answers={activeState?.answers || []}
-            onAnswer={handleAnswer}
-            onComplete={evaluateMatch}
+            initialAnswers={activeState?.answers || []}
+            onSubmit={evaluateMatch}
             onBack={() => setActiveIndex(null)}
             loading={evaluating}
           />

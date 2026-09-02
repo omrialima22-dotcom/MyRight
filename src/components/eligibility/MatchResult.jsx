@@ -1,10 +1,33 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Sparkles, AlertCircle, Loader2 } from "lucide-react";
+import { Sparkles, AlertCircle, HelpCircle, Loader2 } from "lucide-react";
 
 export default function MatchResult({ match, coverage, policy, onPrepareClaim, onBack, creating }) {
   if (!match) return null;
 
+  // Missing info — never declare "not relevant".
+  if (!match.potential_match && match.missing_info) {
+    return (
+      <div className="space-y-4">
+        <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground">חזרה לרשימה</button>
+        <div className="bg-tint-warm rounded-2xl border border-border p-6 shadow-soft">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-background mb-3">
+            <HelpCircle className="w-6 h-6 text-amber-600" />
+          </div>
+          <h3 className="font-heading font-bold text-xl mb-2">חסר לנו עוד מידע</h3>
+          <p className="text-sm text-foreground/80 mb-3 leading-relaxed">
+            מצאנו התאמה אפשרית, אבל יש פרט נוסף שצריך לבדוק לפני שנוכל להתקדם.
+          </p>
+          <div className="bg-background/60 rounded-xl p-4 text-sm text-foreground/90 leading-relaxed border border-border mb-4 break-words">
+            {match.missing_info}
+          </div>
+          <Button variant="outline" className="w-full" onClick={onBack}>חזרה לרשימה</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // No match and no missing info.
   if (!match.potential_match) {
     return (
       <div className="space-y-4">
@@ -18,6 +41,7 @@ export default function MatchResult({ match, coverage, policy, onPrepareClaim, o
     );
   }
 
+  // Potential match.
   return (
     <div className="space-y-4">
       <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground">חזרה לרשימה</button>

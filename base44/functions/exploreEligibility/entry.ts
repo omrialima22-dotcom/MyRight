@@ -6,18 +6,37 @@ const SCHEMA = {
   properties: {
     items: {
       type: "array",
-      description: "כיסויים שעשויים להיות רלוונטיים לאירוע המתואר",
+      description: "כיסויים קנוניים ייחודיים שעשויים להיות רלוונטיים. פריט אחד בלבד לכל כיסוי מבוטח בפועל.",
       items: {
         type: "object",
         properties: {
-          coverage_index: { type: "number", description: "אינדקס הכיסוי במערך הפוליסה" },
-          coverage_name: { type: "string" },
+          coverage_name: { type: "string", description: "שם הכיסוי הקנוני" },
           relevant: { type: "boolean", description: "האם עשוי להיות רלוונטי לאירוע" },
-          relevance_reason: { type: "string", description: "למה עשוי להיות רלוונטי — מבוסס על הכיסוי והאירוע. לעולם לא קובע זכאות." },
-          policy_requirements: { type: "string", description: "מה הפוליסה דורשת, בעברית פשוטה, מבוסס על תנאי הכיסוי" },
+          relevance_reason: { type: "string" },
+          policy_requirements: { type: "string" },
+          conditions: { type: "string", description: "תנאי הזכאות של הכיסוי — מועתק/ממוזג מהקלט" },
+          benefit: { type: "string", description: "הסכום האישי של המבוטח — העתק מהקלט, לא תקרת מוצר" },
+          product_maximum: { type: "string" },
+          person_role: { type: "string", description: "המבוטח שנבחר — העתק מהקלט" },
+          source_clause: { type: "string", description: "סעיף מקור עיקרי — העתק מהקלט" },
+          source_page: { type: "number", description: "עמוד מקור עיקרי — העתק מהקלט" },
+          source_text: { type: "string", description: "נוסח מקורי עיקרי — העתק מהקלט" },
+          clauses: {
+            type: "array",
+            description: "כל הסעיפים/עמודים שנוגעים לכיסוי זה (לוח תשלומים, הגדרה, תקופת המתנה, חריגים) — מצורפים לפריט אחד",
+            items: {
+              type: "object",
+              properties: {
+                type: { type: "string", enum: ["schedule", "definition", "waiting_period", "exclusion", "condition", "other"] },
+                page: { type: "number" },
+                clause: { type: "string" },
+                text: { type: "string" }
+              }
+            }
+          },
           questions: {
             type: "array",
-            description: "שאלות עובדתיות למשתמש, הנגזרות מתנאי הכיסוי, כדי לבדוק רלוונטיות אפשרית",
+            description: "שאלות עובדתיות למשתמש, הנגזרות מתנאי הכיסוי",
             items: {
               type: "object",
               properties: {
@@ -29,7 +48,7 @@ const SCHEMA = {
             }
           }
         },
-        required: ["coverage_index", "coverage_name", "relevant"]
+        required: ["coverage_name", "relevant"]
       }
     }
   },
@@ -38,16 +57,22 @@ const SCHEMA = {
 
 const RULES = [
   "אתה בודק רלוונטיות אפשרית של כיסויים בפוליסה מול אירוע בריאותי שהמשתמש תיאר.",
-  "מטרה: לזהות אילו כיסויים עשויים להיות רלוונטיים, ולהכין שאלות עובדתיות שיעזרו לבדוק זאת.",
-  "כללים קריטיים:",
-  "- לעולם אל תקבע זכאות. 'רלוונטי' = יש קשר אפשרי, לא שהמשתמש זכאי. אסור לכתוב 'מגיע לך', 'אתה זכאי', 'מגיע לך כסף'.",
+  "",
+  "כללי דה-דופליקציה (קריטי):",
+  "- מזג כיסויים שמתייחסים לאותו כיסוי מבוטח בפועל לפריט אחד. אזכורים חוזרים של אותו כיסוי בעמודים/סעיפים שונים (לוח תשלומים, הגדרה, תקופת המתנה, חריגים) אינם יוצרים כיסויים נפרדים — צרף את כולם תחת clauses של אותו פריט.",
+  "- אל תפצל כיסוי אחד למספר פריטים. סעיף מקור אינו זכות נפרדת.",
+  "- שמור כיסויים שונים באמת כפריטים נפרדים (למשל שני כיסויי סרטן שהפוליסה מתייחסת אליהם כשני מוצרים נפרדים).",
+  "",
+  "כללי רלוונטיות:",
+  "- לעולם אל תקבע זכאות. 'רלוונטי' = יש קשר אפשרי, לא שהמשתמש זכאי. אסור 'מגיע לך', 'אתה זכאי', 'מגיע לך כסף'.",
   "- relevant=true רק אם יש קשר ענייני ברור בין תנאי הכיסוי לאירוע. אחרת relevant=false.",
-  "- relevance_reason חייב להתבסס על טקסט הכיסוי ועל תיאור האירוע. אל תמציא.",
-  "- policy_requirements: תרגם את תנאי הכיסוי (תקופת המתנה, תנאי זכאות, הגבלות) לעברית פשוטה. מבוסס על מה שכתוב בפוליסה בלבד.",
-  "- questions: שאלות עובדתיות על מצב המשתמש בתקופה הרלוונטית, הנגזרות מתנאי הכיסוי.",
-  "- השאלות חייבות להיות ניתנות לבדיקה עובדתית על ידי המשתמש. אל תסיק מסקנות בעצמך.",
-  "- העדף answer_type=quick עם 2-4 אפשרויות (כן / לא / לא בטוח / לא זוכר).",
-  "- אל תמציא כיסויים שלא קיימים בפוליסה.",
+  "- relevance_reason ו-policy_requirements מבוססים על טקסט הכיסוי ותיאור האירוע. אל תמציא.",
+  "- questions: שאלות עובדתיות ניתנות לבדיקה. העדף answer_type=quick עם 2-4 אפשרויות.",
+  "",
+  "כללי סכומים (קריטי):",
+  "- benefit = הסכום האישי של המבוטח שהתקבל בקלט בלבד. אל תחליף בתקרת מוצר.",
+  "- product_maximum נשמר בנפרד ואינו הסכום האישי.",
+  "- העתק source_page / source_clause / source_text / clauses / person_role / benefit / product_maximum / conditions אך ורק מתוך נתוני הכיסוי שהתקבלו. אל תמציא מקורות או סכומים.",
   "- כל הטקסטים בעברית בלבד."
 ].join("\n");
 
@@ -55,6 +80,10 @@ function safeObj(result, fallback) {
   if (result && typeof result === 'object') return result;
   if (typeof result === 'string') { try { return JSON.parse(result); } catch { return fallback; } }
   return fallback;
+}
+
+function normalizeName(s) {
+  return String(s || '').replace(/[\s\u200f\u200e\-–—,.:"'()]/g, '').toLowerCase();
 }
 
 export default async function(req) {
@@ -99,12 +128,13 @@ export default async function(req) {
       const insurerName = policy.insurance_company || (policy.policy_metadata && policy.policy_metadata.insurerName) || '';
       const insuredPeople = Array.isArray(policy.insured_people) ? policy.insured_people : [];
       const selectedRole = policy.confirmed_insured_role || (insuredPeople[0] && insuredPeople[0].role) || null;
+
+      // Filter to the selected insured person only; skip coverages they do not have.
       const coverageList = [];
       coverages.forEach((c, i) => {
         const person = selectedRole && Array.isArray(c.persons)
           ? (c.persons.find((p) => p.role === selectedRole) || null)
           : null;
-        // Skip coverages the selected insured person does not have.
         if (person && person.isCovered === false) return;
         coverageList.push({
           index: i,
@@ -118,20 +148,21 @@ export default async function(req) {
           sourceClause: (person && person.sourceClause) || c.sourceClause || '',
           sourcePage: (person && person.sourcePage != null) ? person.sourcePage : (c.sourcePage ?? null),
           sourceText: (person && person.sourceText) || c.sourceText || '',
+          clauses: Array.isArray(c.clauses) ? c.clauses : [],
           personRole: selectedRole || ''
         });
       });
       if (coverageList.length === 0) continue;
 
       const prompt = [
-        buildSystemPrompt("אתה עוזר ביטוחי שבודק רלוונטיות אפשרית של כיסויים בפוליסה מול אירוע בריאותי."),
+        buildSystemPrompt("אתה עוזר ביטוחי שממזג כיסויים כפולים ובודק רלוונטיות אפשרית מול אירוע בריאותי."),
         "",
         eventBlock,
         "",
-        `--- כיסויים שנמצאו בפוליסה (${insurerName || 'חברת ביטוח'}) ---`,
+        `--- כיסויים שנמצאו בפוליסה עבור המבוטח "${selectedRole || 'מבוטח ראשי'}" (${insurerName || 'חברת ביטוח'}) ---`,
         JSON.stringify(coverageList, null, 2),
         "",
-        "לכל כיסוי, החלט אם הוא עשוי להיות רלוונטי לאירוע (relevant). אם כן — מלא relevance_reason, policy_requirements ו-questions.",
+        "לכל כיסוי בפועל, החזר פריט קנוני אחד (ממוזג אם יש כפילויות). החלט relevant. מלא relevance_reason, policy_requirements, conditions ו-questions.",
         RULES
       ].join("\n");
 
@@ -144,27 +175,42 @@ export default async function(req) {
       const data = safeObj(result, { items: [] });
       const its = Array.isArray(data?.items) ? data.items : [];
 
+      // Safety dedup by normalized coverage name — merge clauses of true duplicates.
+      const deduped = [];
+      const seen = {};
       for (const it of its) {
         if (it.relevant === false) continue;
-        const idx = typeof it.coverage_index === 'number' ? it.coverage_index : -1;
-        const cl = coverageList.find((x) => x.index === idx);
-        if (!cl) continue;
+        const norm = normalizeName(it.coverage_name);
+        if (!norm) { deduped.push(it); continue; }
+        if (seen[norm] != null) {
+          const existing = deduped[seen[norm]];
+          if (Array.isArray(it.clauses)) {
+            existing.clauses = [...(existing.clauses || []), ...it.clauses];
+          }
+          continue;
+        }
+        seen[norm] = deduped.length;
+        deduped.push(it);
+      }
+
+      let ci = 0;
+      for (const it of deduped) {
         allItems.push({
-          key: `${policy.id}::${idx}`,
+          key: `${policy.id}::${ci++}`,
           policy_id: policy.id,
           insurer: insurerName,
-          coverage_index: idx,
-          coverage_name: it.coverage_name || cl.name || '',
+          coverage_name: it.coverage_name || '',
           relevance_reason: it.relevance_reason || '',
           policy_requirements: it.policy_requirements || '',
+          conditions: it.conditions || '',
           questions: Array.isArray(it.questions) ? it.questions : [],
-          source_clause: cl.sourceClause,
-          source_page: cl.sourcePage,
-          source_text: cl.sourceText,
-          benefit: cl.benefit,
-          product_maximum: cl.productMaximum || '',
-          person_role: cl.personRole,
-          conditions: cl.conditions || ''
+          source_clause: it.source_clause || '',
+          source_page: it.source_page ?? null,
+          source_text: it.source_text || '',
+          benefit: it.benefit || '',
+          product_maximum: it.product_maximum || '',
+          person_role: it.person_role || selectedRole || '',
+          clauses: Array.isArray(it.clauses) ? it.clauses : []
         });
       }
     }

@@ -39,6 +39,15 @@ export default function EligibilityExplore() {
     [healthEvent]
   );
 
+  const clauseLabel = (t) => ({
+    schedule: "לוח תשלומים",
+    definition: "הגדרה",
+    waiting_period: "תקופת המתנה",
+    exclusion: "חריג",
+    condition: "תנאי זכאות",
+    other: "נוסח מקורי"
+  }[t] || "נוסח מקורי");
+
   useEffect(() => {
     (async () => {
       try {
@@ -384,9 +393,22 @@ export default function EligibilityExplore() {
                 סעיף {sourceModal.source_clause}{sourceModal.source_page != null ? ` · עמוד ${sourceModal.source_page}` : ""}
               </p>
             )}
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground/90">
-              {sourceModal.source_text || "לא שמרנו את הנוסח המקורי."}
-            </p>
+            {sourceModal.clauses && sourceModal.clauses.length > 0 ? (
+              <div className="space-y-2">
+                {sourceModal.clauses.map((cl, i) => (
+                  <div key={i} className="text-sm border-r-2 border-accent/40 pr-3">
+                    <p className="text-xs text-muted-foreground mb-0.5">
+                      {clauseLabel(cl.type)}{cl.page != null ? ` · עמוד ${cl.page}` : ""}{cl.clause ? ` · סעיף ${cl.clause}` : ""}
+                    </p>
+                    <p className="leading-relaxed whitespace-pre-wrap break-words text-foreground/90">{cl.text}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground/90">
+                {sourceModal.source_text || "לא שמרנו את הנוסח המקורי."}
+              </p>
+            )}
           </div>
         </div>
       )}

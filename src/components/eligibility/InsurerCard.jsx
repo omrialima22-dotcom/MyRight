@@ -61,14 +61,16 @@ function BenefitDetail({ item, onShowSource }) {
   return (
     <div className="bg-tint-mint/60 rounded-xl p-3 border border-border">
       <p className="font-medium text-[15px] mb-1 break-words">{item.coverage_name}</p>
-      {item.benefit && (
+      {item.person_role && item.benefit ? (
         <p className="text-sm font-semibold text-foreground mb-0.5 break-words">
-          הסכום שחל עליך: {item.benefit}
-          {item.person_role && <span className="text-muted-foreground font-normal"> ({item.person_role})</span>}
+          סכום הביטוח שלך: {item.benefit}
+          <span className="text-muted-foreground font-normal"> ({item.person_role})</span>
         </p>
+      ) : (
+        <p className="text-sm text-muted-foreground mb-0.5">סכום הביטוח האישי עדיין דורש אימות</p>
       )}
       {item.product_maximum && (
-        <p className="text-xs text-muted-foreground mb-1 break-words">תקרת מוצר: {item.product_maximum}</p>
+        <p className="text-xs text-muted-foreground mb-1 break-words">בפוליסה מופיעה תקרת מוצר של עד {item.product_maximum}</p>
       )}
       <p className="text-sm text-foreground/80 leading-relaxed break-words">
         {item.explanation || item.relevance_reason || "לפי המידע שמסרת ותנאי הפוליסה, ייתכן שכיסוי זה רלוונטי לתקופה שתיארת."}

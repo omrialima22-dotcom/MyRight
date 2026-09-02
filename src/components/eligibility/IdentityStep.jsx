@@ -13,10 +13,10 @@ export default function IdentityStep({ policy, onConfirm }) {
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-3xl bg-tint-blue mb-4">
           <ShieldCheck className="w-7 h-7 text-accent" />
         </div>
-        <h1 className="font-heading text-2xl font-bold mb-2">מצאנו כמה מבוטחים בפוליסה</h1>
+        <h1 className="font-heading text-2xl font-bold mb-2">מי אתה בפוליסה?</h1>
         <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
           {policy.insurance_company ? `פוליסה של ${policy.insurance_company}. ` : ""}
-          כדי לבדוק רק את הכיסויים ששייכים לך, צריך לדעת מי אתה בפוליסה.
+          מצאנו כמה מבוטחים בפוליסה. כדי לבדוק אילו כיסויים שייכים לך, צריך לדעת מי מהם אתה.
         </p>
         {namesMissing && (
           <p className="text-xs text-muted-foreground/80 mt-2 max-w-md mx-auto leading-relaxed">
@@ -56,7 +56,7 @@ export default function IdentityStep({ policy, onConfirm }) {
       </div>
 
       <Button className="w-full" size="lg" disabled={!selected} onClick={() => onConfirm(selected.role, selected.fullName)}>
-        אישור
+        המשך לבדיקה
       </Button>
     </div>
   );

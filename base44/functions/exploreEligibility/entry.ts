@@ -44,7 +44,7 @@ const RULES = [
   "- relevant=true רק אם יש קשר ענייני ברור בין תנאי הכיסוי לאירוע. אחרת relevant=false.",
   "- relevance_reason חייב להתבסס על טקסט הכיסוי ועל תיאור האירוע. אל תמציא.",
   "- policy_requirements: תרגם את תנאי הכיסוי (תקופת המתנה, תנאי זכאות, הגבלות) לעברית פשוטה. מבוסס על מה שכתוב בפוליסה בלבד.",
-  "- questions: שאלות עובדתיות על מצב המשתמש בתקופה הרלוונטית, הנגזרות מתנאי הכיסוי. למשל, אם הכיסוי דורש עזרה בפעולות יומיומיות — שאל על כך בעדינות.",
+  "- questions: שאלות עובדתיות על מצב המשתמש בתקופה הרלוונטית, הנגזרות מתנאי הכיסוי.",
   "- השאלות חייבות להיות ניתנות לבדיקה עובדתית על ידי המשתמש. אל תסיק מסקנות בעצמך.",
   "- העדף answer_type=quick עם 2-4 אפשרויות (כן / לא / לא בטוח / לא זוכר).",
   "- אל תמציא כיסויים שלא קיימים בפוליסה.",
@@ -64,30 +64,22 @@ export default async function(req) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { policy_id, health_event_id } = body;
-    if (!policy_id) return Response.json({ error: 'חסר מזהה פוליסה' }, { status: 400 });
+    const { policy_id, policy_ids, health_event_id } = body;
+    let ids = [];
+    if (Array.isArray(policy_ids) && policy_ids.length) ids = policy_ids;
+    else if (policy_id) ids = [policy_id];
+    if (ids.length === 0) return Response.json({ error: 'חסר מזהה פוליסה' }, { status: 400 });
 
-    const policy = await base44.entities.Policy.get(policy_id);
-    if (!policy) return Response.json({ error: 'פוליסה לא נמצאה' }, { status: 404 });
-
-    const coverages = Array.isArray(policy.coverages) ? policy.coverages : [];
-    if (coverages.length === 0) {
-      return Response.json({ items: [], notice: 'לא נמצאו כיסויים בפוליסה.' });
+    const policies = [];
+    for (const pid of ids) {
+      try { const p = await base44.entities.Policy.get(pid); if (p) policies.push(p); } catch {}
     }
+    if (policies.length === 0) return Response.json({ error: 'פוליסה לא נמצאה' }, { status: 404 });
 
     let event = null;
-    if (health_event_id) {
-      try { event = await base44.entities.HealthEvent.get(health_event_id); } catch {}
-    }
-    if (!event) {
-      try {
-        const recent = await base44.entities.HealthEvent.list('-created_date', 1);
-        event = recent && recent[0] ? recent[0] : null;
-      } catch {}
-    }
-    if (!event || !event.story) {
-      return Response.json({ error: 'no_health_event', items: [] });
-    }
+    if (health_event_id) { try { event = await base44.entities.HealthEvent.get(health_event_id); } catch {} }
+    if (!event) { try { const recent = await base44.entities.HealthEvent.list('-created_date', 1); event = recent && recent[0] ? recent[0] : null; } catch {} }
+    if (!event || !event.story) return Response.json({ error: 'no_health_event', items: [] });
 
     const eventBlock = [
       "תיאור האירוע מהמשתמש:",
@@ -98,58 +90,71 @@ export default async function(req) {
         : ""
     ].join("\n");
 
-    const coverageList = coverages.map((c, i) => ({
-      index: i,
-      name: c.name || '',
-      benefit: c.benefit || '',
-      conditions: c.conditions || '',
-      exclusions: c.exclusions || '',
-      waitingPeriod: c.waitingPeriod || '',
-      eligibility: c.eligibility || '',
-      sourceClause: c.sourceClause || '',
-      sourcePage: c.sourcePage ?? null,
-      sourceText: c.sourceText || ''
-    }));
+    const allItems = [];
 
-    const prompt = [
-      buildSystemPrompt("אתה עוזר ביטוחי שבודק רלוונטיות אפשרית של כיסויים בפוליסה מול אירוע בריאותי."),
-      "",
-      eventBlock,
-      "",
-      "--- כיסויים שנמצאו בפוליסה ---",
-      JSON.stringify(coverageList, null, 2),
-      "",
-      "לכל כיסוי, החלט אם הוא עשוי להיות רלוונטי לאירוע (relevant). אם כן — מלא relevance_reason, policy_requirements ו-questions.",
-      RULES
-    ].join("\n");
+    for (const policy of policies) {
+      const coverages = Array.isArray(policy.coverages) ? policy.coverages : [];
+      if (coverages.length === 0) continue;
 
-    const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt,
-      response_json_schema: SCHEMA,
-      model: 'automatic'
-    });
+      const insurerName = policy.insurance_company || (policy.policy_metadata && policy.policy_metadata.insurerName) || '';
+      const coverageList = coverages.map((c, i) => ({
+        index: i,
+        name: c.name || '',
+        benefit: c.benefit || '',
+        conditions: c.conditions || '',
+        exclusions: c.exclusions || '',
+        waitingPeriod: c.waitingPeriod || '',
+        eligibility: c.eligibility || '',
+        sourceClause: c.sourceClause || '',
+        sourcePage: c.sourcePage ?? null,
+        sourceText: c.sourceText || ''
+      }));
 
-    const data = safeObj(result, { items: [] });
-    const items = Array.isArray(data?.items) ? data.items : [];
+      const prompt = [
+        buildSystemPrompt("אתה עוזר ביטוחי שבודק רלוונטיות אפשרית של כיסויים בפוליסה מול אירוע בריאותי."),
+        "",
+        eventBlock,
+        "",
+        `--- כיסויים שנמצאו בפוליסה (${insurerName || 'חברת ביטוח'}) ---`,
+        JSON.stringify(coverageList, null, 2),
+        "",
+        "לכל כיסוי, החלט אם הוא עשוי להיות רלוונטי לאירוע (relevant). אם כן — מלא relevance_reason, policy_requirements ו-questions.",
+        RULES
+      ].join("\n");
 
-    const enriched = items.map((it) => {
-      const idx = typeof it.coverage_index === 'number' ? it.coverage_index : -1;
-      const cov = idx >= 0 ? coverages[idx] : null;
-      return {
-        coverage_index: idx,
-        coverage_name: it.coverage_name || (cov && cov.name) || '',
-        relevant: it.relevant !== false,
-        relevance_reason: it.relevance_reason || '',
-        policy_requirements: it.policy_requirements || '',
-        questions: Array.isArray(it.questions) ? it.questions : [],
-        source_clause: cov?.sourceClause || '',
-        source_page: cov?.sourcePage ?? null,
-        source_text: cov?.sourceText || '',
-        benefit: cov?.benefit || ''
-      };
-    });
+      const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        prompt,
+        response_json_schema: SCHEMA,
+        model: 'automatic'
+      });
 
-    return Response.json({ items: enriched.filter((it) => it.relevant), policy_id });
+      const data = safeObj(result, { items: [] });
+      const its = Array.isArray(data?.items) ? data.items : [];
+
+      for (const it of its) {
+        if (it.relevant === false) continue;
+        const idx = typeof it.coverage_index === 'number' ? it.coverage_index : -1;
+        const cov = idx >= 0 ? coverages[idx] : null;
+        if (!cov) continue;
+        allItems.push({
+          key: `${policy.id}::${idx}`,
+          policy_id: policy.id,
+          insurer: insurerName,
+          coverage_index: idx,
+          coverage_name: it.coverage_name || cov.name || '',
+          relevance_reason: it.relevance_reason || '',
+          policy_requirements: it.policy_requirements || '',
+          questions: Array.isArray(it.questions) ? it.questions : [],
+          source_clause: cov.sourceClause || '',
+          source_page: cov.sourcePage ?? null,
+          source_text: cov.sourceText || '',
+          benefit: cov.benefit || '',
+          conditions: cov.conditions || ''
+        });
+      }
+    }
+
+    return Response.json({ items: allItems });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

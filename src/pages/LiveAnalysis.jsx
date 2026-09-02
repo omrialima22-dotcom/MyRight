@@ -114,7 +114,7 @@ export default function LiveAnalysis() {
           <div className="space-y-4">
             <AnalysisComplete
               policies={policies}
-              onDone={() => navigate(firstSuccessId ? `/eligibility?policy=${firstSuccessId}` : "/policies")}
+              onDone={() => navigate("/eligibility")}
             />
             {failedCount > 0 && (
               <AnalysisFailure

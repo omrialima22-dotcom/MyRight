@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { Home, MessageCircle, ShieldCheck, FolderKanban, LogOut, Menu, X, Sparkles } from "lucide-react";
@@ -18,12 +18,22 @@ export default function Layout({ children }) {
 
   const currentLabel = navItems.find((n) => (n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)))?.label || "MyRight";
 
+  // Lock background scroll while the drawer is open — preserves the page's exact
+  // scroll position (no jump) and stops the underlying content from moving.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [mobileOpen]);
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar - fixed on the right for RTL */}
+    <div className="min-h-[100dvh] bg-background">
+      {/* Sidebar — RTL drawer: anchored right, slides in from the right on mobile,
+          always visible on desktop. Width is responsive and never exceeds viewport. */}
       <aside
         className={cn(
-          "fixed top-0 right-0 z-40 h-full w-72 bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-300 border-l border-sidebar-border lg:translate-x-0",
+          "fixed top-0 right-0 z-40 h-[100dvh] w-[85vw] max-w-[18rem] lg:w-72 lg:max-w-none bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-300 ease-out border-l border-sidebar-border lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         )}
       >
@@ -42,7 +52,7 @@ export default function Layout({ children }) {
           </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 mt-2">
+        <nav className="flex-1 overflow-y-auto scrollbar-thin px-4 space-y-1 mt-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -89,21 +99,25 @@ export default function Layout({ children }) {
 
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)} />
+      <div
+        className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
       )}
 
       {/* Main content */}
-      <div className="lg:pr-72">
-        {/* Mobile top bar */}
-        <header className="lg:hidden sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 py-3">
-          <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-muted">
-            <Menu className="w-5 h-5" />
-          </button>
-          <span className="font-heading font-semibold">{currentLabel}</span>
-          <div className="w-9" />
-        </header>
+      <div className="lg:pr-72 min-w-0">
+      {/* Mobile top bar */}
+      <header className="lg:hidden sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 py-3">
+        <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-muted shrink-0" aria-label="פתח תפריט">
+          <Menu className="w-5 h-5" />
+        </button>
+        <span className="font-heading font-semibold truncate px-2">{currentLabel}</span>
+        <div className="w-9 shrink-0" />
+      </header>
 
-        <main className="min-h-screen">{children}</main>
+      <main className="min-h-[100dvh] min-w-0">{children}</main>
       </div>
     </div>
   );

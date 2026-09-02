@@ -86,11 +86,18 @@
 
   html {
     direction: rtl;
+    /* Prevent any horizontal page scroll on mobile — the off-canvas RTL drawer and
+       any wide element must never create a horizontal scrollbar. */
+    overflow-x: hidden;
+    max-width: 100%;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
     @apply bg-background text-foreground font-body antialiased;
     font-feature-settings: "kern";
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   h1, h2, h3, h4, h5 {

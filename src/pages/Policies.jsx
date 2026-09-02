@@ -66,15 +66,15 @@ export default function Policies() {
               <Link
                 key={p.id}
                 to={`/policies/${p.id}`}
-                className="group bg-card rounded-2xl border border-border p-5 hover:shadow-lg hover:border-primary/30 transition-all"
+                className="group bg-card rounded-2xl border border-border p-5 hover:shadow-lg hover:border-primary/30 transition-all min-w-0 overflow-hidden break-words"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+                <div className="flex items-start justify-between mb-3 gap-2">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                     <ShieldCheck className="w-5 h-5 text-primary" />
                   </div>
-                  <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all" />
+                  <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all shrink-0" />
                 </div>
-                <h3 className="font-heading font-semibold text-lg mb-1">{p.insurance_company}</h3>
+                <h3 className="font-heading font-semibold text-lg mb-1 break-words">{p.insurance_company}</h3>
                 <p className="text-sm text-muted-foreground mb-3 flex items-center gap-2 flex-wrap">
                   {policyTypeLabels[p.policy_type] || p.policy_type}
                   {p.extraction_status === "processing" && <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><Loader2 className="w-3 h-3 animate-spin" /> בקריאה</span>}
@@ -84,13 +84,13 @@ export default function Policies() {
                 </p>
                 <div className="space-y-1.5 text-sm border-t border-border pt-3">
                   {p.coverage_amount != null && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">סכום כיסוי</span><span className="font-medium">{formatCurrency(p.coverage_amount)}</span></div>
+                    <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">סכום כיסוי</span><span className="font-medium text-left break-words">{formatCurrency(p.coverage_amount)}</span></div>
                   )}
                   {p.monthly_premium != null && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">פרמיה חודשית</span><span className="font-medium">{formatCurrency(p.monthly_premium)}</span></div>
+                    <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">פרמיה חודשית</span><span className="font-medium text-left break-words">{formatCurrency(p.monthly_premium)}</span></div>
                   )}
                   {p.start_date && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">תחילה</span><span className="font-medium">{formatDate(p.start_date)}</span></div>
+                    <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">תחילה</span><span className="font-medium text-left break-words">{formatDate(p.start_date)}</span></div>
                   )}
                 </div>
               </Link>

@@ -97,18 +97,31 @@ export default async function(req) {
       if (coverages.length === 0) continue;
 
       const insurerName = policy.insurance_company || (policy.policy_metadata && policy.policy_metadata.insurerName) || '';
-      const coverageList = coverages.map((c, i) => ({
-        index: i,
-        name: c.name || '',
-        benefit: c.benefit || '',
-        conditions: c.conditions || '',
-        exclusions: c.exclusions || '',
-        waitingPeriod: c.waitingPeriod || '',
-        eligibility: c.eligibility || '',
-        sourceClause: c.sourceClause || '',
-        sourcePage: c.sourcePage ?? null,
-        sourceText: c.sourceText || ''
-      }));
+      const insuredPeople = Array.isArray(policy.insured_people) ? policy.insured_people : [];
+      const selectedRole = policy.confirmed_insured_role || (insuredPeople[0] && insuredPeople[0].role) || null;
+      const coverageList = [];
+      coverages.forEach((c, i) => {
+        const person = selectedRole && Array.isArray(c.persons)
+          ? (c.persons.find((p) => p.role === selectedRole) || null)
+          : null;
+        // Skip coverages the selected insured person does not have.
+        if (person && person.isCovered === false) return;
+        coverageList.push({
+          index: i,
+          name: c.name || '',
+          benefit: (person && person.sumInsured) ? person.sumInsured : (c.benefit || ''),
+          productMaximum: c.productMaximum || '',
+          conditions: c.conditions || '',
+          exclusions: c.exclusions || '',
+          waitingPeriod: c.waitingPeriod || '',
+          eligibility: c.eligibility || '',
+          sourceClause: (person && person.sourceClause) || c.sourceClause || '',
+          sourcePage: (person && person.sourcePage != null) ? person.sourcePage : (c.sourcePage ?? null),
+          sourceText: (person && person.sourceText) || c.sourceText || '',
+          personRole: selectedRole || ''
+        });
+      });
+      if (coverageList.length === 0) continue;
 
       const prompt = [
         buildSystemPrompt("אתה עוזר ביטוחי שבודק רלוונטיות אפשרית של כיסויים בפוליסה מול אירוע בריאותי."),
@@ -134,22 +147,24 @@ export default async function(req) {
       for (const it of its) {
         if (it.relevant === false) continue;
         const idx = typeof it.coverage_index === 'number' ? it.coverage_index : -1;
-        const cov = idx >= 0 ? coverages[idx] : null;
-        if (!cov) continue;
+        const cl = coverageList.find((x) => x.index === idx);
+        if (!cl) continue;
         allItems.push({
           key: `${policy.id}::${idx}`,
           policy_id: policy.id,
           insurer: insurerName,
           coverage_index: idx,
-          coverage_name: it.coverage_name || cov.name || '',
+          coverage_name: it.coverage_name || cl.name || '',
           relevance_reason: it.relevance_reason || '',
           policy_requirements: it.policy_requirements || '',
           questions: Array.isArray(it.questions) ? it.questions : [],
-          source_clause: cov.sourceClause || '',
-          source_page: cov.sourcePage ?? null,
-          source_text: cov.sourceText || '',
-          benefit: cov.benefit || '',
-          conditions: cov.conditions || ''
+          source_clause: cl.sourceClause,
+          source_page: cl.sourcePage,
+          source_text: cl.sourceText,
+          benefit: cl.benefit,
+          product_maximum: cl.productMaximum || '',
+          person_role: cl.personRole,
+          conditions: cl.conditions || ''
         });
       }
     }

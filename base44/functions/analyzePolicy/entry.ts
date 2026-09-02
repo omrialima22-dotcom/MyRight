@@ -30,24 +30,61 @@ const READ_SCHEMA = {
 };
 
 // STAGE 2 schema — structured coverages derived ONLY from the extracted text.
+// Coverages are extracted PER INSURED PERSON (matrix-aware), and the product
+// maximum is kept separate from each person's actual insured amount.
 const COVERAGES_SCHEMA = {
   type: "object",
   properties: {
+    insuredPeople: {
+      type: "array",
+      description: "כל המבוטחים בפוליסה לפי התוויות שמופיעות במסמך (מבוטח ראשי, מבוטח שני, ילד 1 וכו'). אם מדובר באדם אחד — מערך בן פריט אחד.",
+      items: {
+        type: "object",
+        properties: {
+          role: { type: "string", description: "התווית/התפקיד כפי שמופיע במסמך, למשל 'מבוטח ראשי', 'ילד 1'" },
+          fullName: { type: "string", description: "שם מלא אם מופיע בבירור" },
+          identificationNumber: { type: "string", description: "מספר זהות אם מופיע — השאר ריק אם לא" },
+          sourcePage: { type: "number" },
+          sourceText: { type: "string" },
+          confidence: { type: "string", enum: ["high", "medium", "low"] }
+        },
+        required: ["role"]
+      }
+    },
     coverages: {
       type: "array",
       items: {
         type: "object",
         properties: {
           name: { type: "string", description: "שם הכיסוי" },
-          benefit: { type: "string", description: "סכום/קצבת הפיצוי הכתוב" },
+          benefit: { type: "string", description: "סכום/קצבת הפיצוי הכללי אם מופיע" },
+          productMaximum: { type: "string", description: "סכום מקסימלי של המוצר / תקרה כללית — לא הסכום האישי של מבוטח. ריק אם לא מופיע." },
           conditions: { type: "string", description: "תנאי זכאות" },
           exclusions: { type: "string", description: "חריגים" },
           waitingPeriod: { type: "string", description: "תקופת המתנה/אכשרה" },
-          sourcePage: { type: "number", description: "מספר העמוד שבו מופיע הכיסוי" },
-          sourceClause: { type: "string", description: "מספר הסעיף" },
+          sourcePage: { type: "number" },
+          sourceClause: { type: "string" },
           sourceText: { type: "string", description: "הנוסח המקורי המדויק מהפוליסה" },
-          plainExplanation: { type: "string", description: "הסבר בעברית פשוטה" }
-        }
+          plainExplanation: { type: "string", description: "הסבר בעברית פשוטה" },
+          persons: {
+            type: "array",
+            description: "הנתונים של כל מבוטח עבור כיסוי זה. חובה לשמור את הקשר שורה+עמודה+ערך. אם הכיסוי חל על כולם — צור פריט לכל מבוטח.",
+            items: {
+              type: "object",
+              properties: {
+                role: { type: "string", description: "תואם ל-role ב-insuredPeople" },
+                isCovered: { type: "boolean" },
+                sumInsured: { type: "string", description: "הסכום שחל על מבוטח זה בכיסוי זה" },
+                extensions: { type: "string" },
+                sourcePage: { type: "number" },
+                sourceClause: { type: "string" },
+                sourceText: { type: "string", description: "הנוסח המקורי המתייחס לעמודה/לסכום הזה" }
+              },
+              required: ["role", "isCovered"]
+            }
+          }
+        },
+        required: ["name", "persons"]
       }
     },
     overallSummary: { type: "string", description: "סיכום כללי בעברית פשוטה" }
@@ -142,6 +179,7 @@ export default async function(req) {
     // STAGE 2: identify coverages from the extracted text (grounded, no invention).
     const contextText = buildContextText(documentSections);
     let coverages = [];
+    let insuredPeople = [];
     let overallSummary = '';
 
     if (contextText.trim()) {
@@ -154,6 +192,7 @@ export default async function(req) {
         const result = (llm && typeof llm === 'object') ? llm : null;
         if (result) {
           coverages = Array.isArray(result.coverages) ? result.coverages.map(normalizeCoverage) : [];
+          insuredPeople = Array.isArray(result.insuredPeople) ? result.insuredPeople.map(normalizeInsuredPerson) : [];
           overallSummary = result.overallSummary || '';
         }
       } catch {
@@ -163,8 +202,9 @@ export default async function(req) {
 
     const analysis = overallSummary || buildFallbackSummary(policyMetadata, coverages, documentSections);
 
-    // STAGE 2 SAVE — persist identified coverages + plain summary; mark complete.
+    // STAGE 2 SAVE — persist insured people, per-person coverages + summary; mark complete.
     await base44.entities.Policy.update(policy_id, {
+      insured_people: insuredPeople,
       coverages,
       analysis,
       extraction_status: 'success'
@@ -200,22 +240,56 @@ function buildContextText(sections) {
 function buildCoveragesPrompt(contextText) {
   return `אתה מנתח פוליסות ביטוח ישראליות. להלן הטקסט שחולץ מתוך פוליסה, מאורגן לפי עמודים. הטקסט הזה הוא המקור היחיד שעליו אתה מסתמך.
 
-חובות:
+שלב א' — זיהוי מבוטחים (insuredPeople):
+- זהה את כל המבוטחים בפוליסה לפי התוויות שמופיעות במסמך (מבוטח ראשי, מבוטח שני, ילד 1, ילד 2 וכו').
+- אם מופיע רק אדם אחד — החזר מערך בן פריט אחד.
+- אל תנחש מי מהם המשתמש. רק תעד את מה שכתוב. אל תנחש שמות או מספרי זהות שלא מופיעים.
+
+שלב ב' — כיסויים לפי מבוטח (coverages):
 - זהה אך ורק כיסויים שמופיעים בפועל בטקסט. אל תמציא כיסויים שלא מוזכרים.
-- לכל כיסוי, ציין את מספר העמוד שבו הוא מופיע (sourcePage) ואת מספר הסעיף אם ידוע (sourceClause).
-- בשדה sourceText העתק את הנוסח המקורי המדויק מהפוליסה התומך בכיסוי.
-- בשדה plainExplanation כתוב הסבר קצר בעברית פשוטה וברורה.
+- פוליסות רבות מציגות טבלת מטריצה: שורות = כיסויים, עמודות = מבוטחים. חובה לשמור את הקשר שורה + עמודה + ערך. אל תשטח טבלה לערך גלובלי אחד שלא שייך לעמודה מסוימת.
+- לכל כיסוי, מלא persons: פריט לכל מבוטח עם הסכום/הבחירה שחלים עליו באותה עמודה. אם מבוטח מסוים לא מכוסה בכיסוי — isCovered=false.
+- הפרד בין productMaximum (תקרת מוצר / מקסימום כללי) לבין הסכום האישי של מבוטח ב-persons[].sumInsured. אל תכניס תקרת מוצר כסכום של מבוטח.
+- לכל ערך ועמודה, ציין sourcePage ו-sourceText מהמסמך כדי שניתן יהיה להצביע על המקור.
+- plainExplanation: הסבר קצר בעברית פשוטה וברורה.
 - אם מידע מסוים לא מופיע, השאר את השדה ההוא ריק. אל תנחש.
-- בשדה overallSummary כתוב סיכום כללי בעברית פשוטה, המבוסס אך ורק על הטקסט.
+- overallSummary: סיכום כללי בעברית פשוטה, המבוסס אך ורק על הטקסט.
 
 טקסט הפוליסה שחולץ:
 ${contextText}`;
 }
 
+function normalizeInsuredPerson(p) {
+  return {
+    role: p.role || 'מבוטח ראשי',
+    fullName: p.fullName || '',
+    identificationNumber: p.identificationNumber || '',
+    sourcePage: p.sourcePage != null ? Number(p.sourcePage) : null,
+    sourceText: p.sourceText || '',
+    confidence: p.confidence || 'medium'
+  };
+}
+
+function normalizeCoveragePerson(p) {
+  return {
+    role: p.role || 'מבוטח ראשי',
+    isCovered: p.isCovered !== false,
+    sumInsured: p.sumInsured || '',
+    extensions: p.extensions || '',
+    sourcePage: p.sourcePage != null ? Number(p.sourcePage) : null,
+    sourceClause: p.sourceClause || '',
+    sourceText: p.sourceText || ''
+  };
+}
+
 function normalizeCoverage(c) {
+  const persons = Array.isArray(c.persons) && c.persons.length
+    ? c.persons.map(normalizeCoveragePerson)
+    : [{ role: 'מבוטח ראשי', isCovered: true, sumInsured: c.benefit || '', extensions: '', sourcePage: c.sourcePage != null ? Number(c.sourcePage) : null, sourceClause: c.sourceClause || '', sourceText: c.sourceText || '' }];
   return {
     name: c.name || '',
     benefit: c.benefit || '',
+    productMaximum: c.productMaximum || '',
     conditions: c.conditions || '',
     exclusions: c.exclusions || '',
     waitingPeriod: c.waitingPeriod || '',
@@ -223,7 +297,8 @@ function normalizeCoverage(c) {
     sourcePage: c.sourcePage != null ? Number(c.sourcePage) : null,
     sourceClause: c.sourceClause || '',
     sourceText: c.sourceText || '',
-    plainExplanation: c.plainExplanation || ''
+    plainExplanation: c.plainExplanation || '',
+    persons
   };
 }
 

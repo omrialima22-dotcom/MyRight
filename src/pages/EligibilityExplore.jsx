@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlobalQuestionFlow from "@/components/eligibility/GlobalQuestionFlow";
+import IdentityStep from "@/components/eligibility/IdentityStep";
 import FinalSummary from "@/components/eligibility/FinalSummary";
 
 export default function EligibilityExplore() {
@@ -24,6 +25,7 @@ export default function EligibilityExplore() {
   const [recalcDone, setRecalcDone] = useState(false);
   const [packageStatus, setPackageStatus] = useState({});
   const [creatingInsurer, setCreatingInsurer] = useState(null);
+  const [identityPolicy, setIdentityPolicy] = useState(null);
   const [sourceModal, setSourceModal] = useState(null);
 
   const policiesMap = React.useMemo(() => {
@@ -130,21 +132,30 @@ export default function EligibilityExplore() {
     setRecalcDone(true);
   };
 
-  // Initial discovery + first recalc.
+  // Identity gate → discovery → first recalc.
   useEffect(() => {
     (async () => {
-      if (policies.length > 0 && healthEvent && !discovering && items.length === 0 && !recalcDone) {
-        const its = await runDiscovery();
-        setDiscovering(false);
-        if (its && its.length > 0) {
-          await runRecalc(its, []);
-        } else {
-          setRecalcDone(true);
-        }
+      if (loading || policies.length === 0 || !healthEvent) return;
+      if (discovering || recalcDone || items.length > 0) return;
+      const needIdentity = policies.filter((p) => {
+        const people = Array.isArray(p.insured_people) ? p.insured_people : [];
+        return people.length > 1 && !p.confirmed_insured_role;
+      });
+      if (needIdentity.length > 0) {
+        setIdentityPolicy(needIdentity[0]);
+        return;
+      }
+      setIdentityPolicy(null);
+      const its = await runDiscovery();
+      setDiscovering(false);
+      if (its && its.length > 0) {
+        await runRecalc(its, []);
+      } else {
+        setRecalcDone(true);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [policies, healthEvent]);
+  }, [policies, healthEvent, loading]);
 
   const currentQuestion = editIndex != null ? answeredFacts[editIndex] : pendingQuestions[0];
   const answeredCount = answeredFacts.length;
@@ -184,6 +195,22 @@ export default function EligibilityExplore() {
     } else if (answeredFacts.length > 0) {
       setEditIndex(answeredFacts.length - 1);
     }
+  };
+
+  const confirmIdentity = async (role, name) => {
+    if (!identityPolicy) return;
+    const updated = {
+      confirmed_insured_role: role,
+      confirmed_insured_name: name || '',
+      confirmed_at: new Date().toISOString()
+    };
+    try {
+      await base44.entities.Policy.update(identityPolicy.id, updated);
+      setPolicies((prev) => prev.map((p) => (p.id === identityPolicy.id ? { ...p, ...updated } : p)));
+    } catch (e) {
+      toast({ title: "שמירת הזיהוי נכשלה", description: e.message, variant: "destructive" });
+    }
+    setIdentityPolicy(null);
   };
 
   const preparePackage = async (insurer) => {
@@ -302,6 +329,8 @@ export default function EligibilityExplore() {
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="w-5 h-5 animate-spin ml-2" /> בודקים אילו כיסויים עשויים להיות רלוונטיים…
           </div>
+        ) : identityPolicy ? (
+          <IdentityStep policy={identityPolicy} onConfirm={confirmIdentity} />
         ) : items.length === 0 && recalcDone ? (
           <div className="bg-card rounded-2xl border border-dashed border-border p-8 text-center">
             <p className="text-muted-foreground mb-4">לא מצאנו כיסויים שעשויים להיות רלוונטיים למקרה שתיארת.</p>
@@ -347,6 +376,9 @@ export default function EligibilityExplore() {
               <h3 className="font-heading font-semibold break-words">{sourceModal.coverage_name}</h3>
               <button onClick={() => setSourceModal(null)} className="text-muted-foreground shrink-0">✕</button>
             </div>
+            {sourceModal.person_role && (
+              <p className="text-sm text-muted-foreground mb-2">עמודה בפוליסה: {sourceModal.person_role}</p>
+            )}
             {sourceModal.source_clause && (
               <p className="text-sm text-muted-foreground mb-2">
                 סעיף {sourceModal.source_clause}{sourceModal.source_page != null ? ` · עמוד ${sourceModal.source_page}` : ""}

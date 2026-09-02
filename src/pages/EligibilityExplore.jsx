@@ -1,29 +1,27 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import CheckList from "@/components/eligibility/CheckList";
-import CoverageCheckFlow from "@/components/eligibility/CoverageCheckFlow";
-import MatchResult from "@/components/eligibility/MatchResult";
+import GlobalQuestionFlow from "@/components/eligibility/GlobalQuestionFlow";
 import FinalSummary from "@/components/eligibility/FinalSummary";
 
 export default function EligibilityExplore() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const [policies, setPolicies] = useState([]);
   const [healthEvent, setHealthEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [exploring, setExploring] = useState(false);
-  const [ran, setRan] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
   const [items, setItems] = useState([]);
-  const [states, setStates] = useState({});
-  const [activeKey, setActiveKey] = useState(null);
-  const [evaluating, setEvaluating] = useState(false);
+  const [pendingQuestions, setPendingQuestions] = useState([]);
+  const [answeredFacts, setAnsweredFacts] = useState([]); // [{fact_key, value, prompt, answer_type, options}]
+  const [editIndex, setEditIndex] = useState(null);
+  const [recalcLoading, setRecalcLoading] = useState(false);
+  const [recalcDone, setRecalcDone] = useState(false);
   const [packageStatus, setPackageStatus] = useState({});
   const [creatingInsurer, setCreatingInsurer] = useState(null);
   const [sourceModal, setSourceModal] = useState(null);
@@ -33,6 +31,11 @@ export default function EligibilityExplore() {
     policies.forEach((p) => { m[p.id] = p; });
     return m;
   }, [policies]);
+
+  const pastFacts = React.useMemo(
+    () => (healthEvent?.facts || []).map((f) => ({ fact_key: f.fact_key, value: f.value })),
+    [healthEvent]
+  );
 
   useEffect(() => {
     (async () => {
@@ -51,8 +54,8 @@ export default function EligibilityExplore() {
     })();
   }, []);
 
-  const runExploration = async () => {
-    setExploring(true);
+  const runDiscovery = async () => {
+    setDiscovering(true);
     try {
       const res = await base44.functions.invoke("exploreEligibility", {
         policy_ids: policies.map((p) => p.id),
@@ -61,95 +64,149 @@ export default function EligibilityExplore() {
       const data = res.data || res;
       if (data.error === "no_health_event") {
         setHealthEvent(null);
-        setRan(true);
-        setExploring(false);
+        setDiscovering(false);
         return;
       }
       if (data.error) {
         toast({ title: "משהו השתבש", description: data.error, variant: "destructive" });
       }
-      const its = data.items || [];
-      setItems(its);
-      const init = {};
-      its.forEach((it) => {
-        init[it.key] = {
-          questionsCount: (it.questions || []).length,
-          answers: [],
-          match: null
-        };
-      });
-      setStates(init);
+      setItems(data.items || []);
+      return data.items || [];
     } catch (e) {
       toast({ title: "משהו השתבש", description: e.message, variant: "destructive" });
     }
-    setRan(true);
-    setExploring(false);
+    setDiscovering(false);
+    return null;
   };
 
-  useEffect(() => {
-    if (policies.length > 0 && healthEvent && !ran && !exploring) runExploration();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [policies, healthEvent]);
+  const factsForRecalc = (currentAnswered) => {
+    const map = {};
+    pastFacts.forEach((f) => { map[f.fact_key] = f.value; });
+    currentAnswered.forEach((f) => { map[f.fact_key] = f.value; });
+    return Object.keys(map).map((k) => ({ fact_key: k, value: map[k] }));
+  };
 
-  const activeItem = items.find((it) => it.key === activeKey);
-  const activeState = states[activeKey];
-  const activePolicy = activeItem ? policiesMap[activeItem.policy_id] : null;
-
-  const evaluateMatch = async (answers) => {
-    setEvaluating(true);
-    setStates((prev) => ({
-      ...prev,
-      [activeKey]: { ...prev[activeKey], answers: answers || [] }
+  const persistFacts = async (currentAnswered) => {
+    if (!healthEvent?.id) return;
+    const map = {};
+    pastFacts.forEach((f) => { map[f.fact_key] = f.value; });
+    currentAnswered.forEach((f) => { map[f.fact_key] = f.value; });
+    const facts = Object.keys(map).map((k) => ({
+      fact_key: k, value: map[k], certainty: "confirmed", source: "user"
     }));
     try {
-      const coverage = activePolicy.coverages[activeItem.coverage_index];
-      const res = await base44.functions.invoke("checkEligibilityMatch", {
-        coverage,
-        answers: answers || [],
-        event_summary: healthEvent?.summary || healthEvent?.story
+      await base44.entities.HealthEvent.update(healthEvent.id, { facts });
+    } catch {}
+  };
+
+  const runRecalc = async (coverages, currentAnswered) => {
+    setRecalcLoading(true);
+    try {
+      const res = await base44.functions.invoke("recalcReviewPlan", {
+        coverages,
+        facts: factsForRecalc(currentAnswered),
+        event_summary: healthEvent?.summary || "",
+        event_story: healthEvent?.story || "",
+        event_answers: healthEvent?.answers || []
       });
       const data = res.data || res;
       if (data.error) {
-        toast({ title: "הבדיקה נכשלה", description: data.error, variant: "destructive" });
+        toast({ title: "עדכון התוכנית נכשל", description: data.error, variant: "destructive" });
       } else {
-        setStates((prev) => ({ ...prev, [activeKey]: { ...prev[activeKey], match: data } }));
+        const statusMap = {};
+        (data.coverages || []).forEach((c) => { statusMap[c.key] = c; });
+        setItems(coverages.map((c) => ({
+          ...c,
+          status: statusMap[c.key]?.status || "unknown",
+          explanation: statusMap[c.key]?.explanation || "",
+          missing_fact_keys: statusMap[c.key]?.missing_fact_keys || []
+        })));
+        setPendingQuestions(data.questions || []);
       }
     } catch (e) {
-      toast({ title: "הבדיקה נכשלה", description: e.message, variant: "destructive" });
+      toast({ title: "עדכון התוכנית נכשל", description: e.message, variant: "destructive" });
     }
-    setEvaluating(false);
+    setRecalcLoading(false);
+    setRecalcDone(true);
   };
 
-  const continueToNext = () => {
-    const idx = items.findIndex((it) => it.key === activeKey);
-    if (idx >= 0 && idx + 1 < items.length) {
-      setActiveKey(items[idx + 1].key);
+  // Initial discovery + first recalc.
+  useEffect(() => {
+    (async () => {
+      if (policies.length > 0 && healthEvent && !discovering && items.length === 0 && !recalcDone) {
+        const its = await runDiscovery();
+        setDiscovering(false);
+        if (its && its.length > 0) {
+          await runRecalc(its, []);
+        } else {
+          setRecalcDone(true);
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policies, healthEvent]);
+
+  const currentQuestion = editIndex != null ? answeredFacts[editIndex] : pendingQuestions[0];
+  const answeredCount = answeredFacts.length;
+  const remaining = pendingQuestions.length;
+  const total = answeredCount + remaining;
+  const coveragesReviewed = items.filter((it) => it.status && it.status !== "unknown").length;
+  const allReviewed = recalcDone && items.length > 0 && pendingQuestions.length === 0 && editIndex == null;
+
+  const handleContinue = async (answer) => {
+    let newAnswered;
+    if (editIndex != null) {
+      const idx = editIndex;
+      newAnswered = answeredFacts.slice(0, idx + 1);
+      newAnswered[idx] = { ...answeredFacts[idx], value: answer };
+      setAnsweredFacts(newAnswered);
+      setEditIndex(null);
     } else {
-      setActiveKey(null);
+      const q = pendingQuestions[0];
+      if (!q) return;
+      newAnswered = [...answeredFacts, {
+        fact_key: q.fact_key,
+        value: answer,
+        prompt: q.prompt,
+        answer_type: q.answer_type,
+        options: q.options
+      }];
+      setAnsweredFacts(newAnswered);
     }
+    await persistFacts(newAnswered);
+    await runRecalc(items, newAnswered);
   };
 
-  const allReviewed = items.length > 0 && items.every((it) => states[it.key]?.match);
+  const handleBack = () => {
+    if (recalcLoading) return;
+    if (editIndex != null) {
+      setEditIndex((i) => Math.max(0, i - 1));
+    } else if (answeredFacts.length > 0) {
+      setEditIndex(answeredFacts.length - 1);
+    }
+  };
 
   const preparePackage = async (insurer) => {
     setCreatingInsurer(insurer);
     try {
       const potentialItems = items.filter(
-        (it) => (it.insurer || "חברת ביטוח") === insurer && states[it.key]?.match?.potential_match
+        (it) => (it.insurer || "חברת ביטוח") === insurer && it.status === "potential"
       );
       if (potentialItems.length === 0) return;
 
+      const userAnswers = answeredFacts.map((f) => ({ question: f.prompt, answer: f.value }));
+
       const coverages = potentialItems.map((it) => ({
         name: it.coverage_name,
-        benefit: states[it.key]?.match?.benefit || it.benefit || "",
+        benefit: it.benefit || "",
         conditions: it.conditions || "",
         source_clause: it.source_clause,
         source_page: it.source_page,
         source_text: it.source_text,
         policy_requirements: it.policy_requirements,
         relevance_reason: it.relevance_reason,
-        eligibility_summary: states[it.key]?.match?.explanation || "",
-        user_answers: states[it.key]?.answers || []
+        eligibility_summary: it.explanation || "",
+        user_answers: userAnswers
       }));
 
       const firstPolicy = policiesMap[potentialItems[0].policy_id];
@@ -238,65 +295,48 @@ export default function EligibilityExplore() {
     );
   }
 
-  const showList = activeKey == null;
-
   return (
     <Layout>
       <div className="max-w-2xl mx-auto px-5 py-8 sm:py-12 min-w-0">
-        {showList && !allReviewed && (
-          <div className="mb-6">
-            <h1 className="font-heading text-2xl lg:text-3xl font-bold mb-2">
-              מצאנו {items.length} דברים שכדאי לבדוק
-            </h1>
-            <p className="text-muted-foreground leading-relaxed">
-              עברנו על הפוליסות והשווינו אותן למה שסיפרת לנו. נעבור יחד על כל אחד מהם.
-            </p>
-          </div>
-        )}
-
-        {exploring ? (
+        {discovering || (recalcLoading && !recalcDone) ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="w-5 h-5 animate-spin ml-2" /> בודקים אילו כיסויים עשויים להיות רלוונטיים…
           </div>
-        ) : ran && items.length === 0 ? (
+        ) : items.length === 0 && recalcDone ? (
           <div className="bg-card rounded-2xl border border-dashed border-border p-8 text-center">
             <p className="text-muted-foreground mb-4">לא מצאנו כיסויים שעשויים להיות רלוונטיים למקרה שתיארת.</p>
             <Button variant="outline" onClick={() => navigate("/policies")}>חזרה לפוליסות</Button>
           </div>
-        ) : showList && allReviewed ? (
+        ) : allReviewed ? (
           <FinalSummary
             items={items}
-            states={states}
+            answeredCount={answeredCount}
             onPreparePackage={preparePackage}
             packageStatus={packageStatus}
             onShowSource={(it) => setSourceModal(it)}
             creatingInsurer={creatingInsurer}
           />
-        ) : showList ? (
-          <CheckList
-            items={items}
-            states={states}
-            onCheck={(it) => setActiveKey(it.key)}
-            onShowSource={(it) => setSourceModal(it)}
-          />
-        ) : activeState?.match ? (
-          <MatchResult
-            match={activeState.match}
-            coverage={activeItem}
-            policy={activePolicy}
-            onContinue={continueToNext}
-            isLast={items.findIndex((it) => it.key === activeKey) === items.length - 1}
-            onBack={() => setActiveKey(null)}
-            loading={evaluating}
+        ) : currentQuestion ? (
+          <GlobalQuestionFlow
+            question={currentQuestion}
+            initialValue={editIndex != null ? answeredFacts[editIndex]?.value : ""}
+            editMode={editIndex != null}
+            progress={{
+              coveragesTotal: items.length,
+              coveragesReviewed,
+              answered: answeredCount,
+              total,
+              remaining
+            }}
+            onContinue={handleContinue}
+            onBack={handleBack}
+            canBack={editIndex != null || answeredFacts.length > 0}
+            loading={recalcLoading}
           />
         ) : (
-          <CoverageCheckFlow
-            item={activeItem}
-            initialAnswers={activeState?.answers || []}
-            onSubmit={evaluateMatch}
-            onBack={() => setActiveKey(null)}
-            loading={evaluating}
-          />
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin ml-2" /> מעדכן את תוכנית הבדיקה…
+          </div>
         )}
       </div>
 

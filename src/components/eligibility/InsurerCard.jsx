@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronUp, FileText, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function InsurerCard({ insurer, items, states, packageStatus, onPreparePackage, onShowSource, creating }) {
+export default function InsurerCard({ insurer, items, packageStatus, onPreparePackage, onShowSource, creating }) {
   const [open, setOpen] = useState(false);
   const packageId = packageStatus[insurer];
 
@@ -36,7 +36,7 @@ export default function InsurerCard({ insurer, items, states, packageStatus, onP
       {open && (
         <div className="mt-3 space-y-3 animate-fade-up">
           {items.map((it) => (
-            <BenefitDetail key={it.key} item={it} match={states[it.key]?.match} onShowSource={onShowSource} />
+            <BenefitDetail key={it.key} item={it} onShowSource={onShowSource} />
           ))}
         </div>
       )}
@@ -56,13 +56,13 @@ export default function InsurerCard({ insurer, items, states, packageStatus, onP
   );
 }
 
-function BenefitDetail({ item, match, onShowSource }) {
+function BenefitDetail({ item, onShowSource }) {
   const [showSource, setShowSource] = useState(false);
   return (
     <div className="bg-tint-mint/60 rounded-xl p-3 border border-border">
       <p className="font-medium text-[15px] mb-1 break-words">{item.coverage_name}</p>
       <p className="text-sm text-foreground/80 leading-relaxed break-words">
-        {match?.explanation || item.relevance_reason || "לפי המידע שמסרת ותנאי הפוליסה, ייתכן שכיסוי זה רלוונטי לתקופה שתיארת."}
+        {item.explanation || item.relevance_reason || "לפי המידע שמסרת ותנאי הפוליסה, ייתכן שכיסוי זה רלוונטי לתקופה שתיארת."}
       </p>
       {item.source_text && (
         <button onClick={() => onShowSource(item)} className="mt-2 text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">

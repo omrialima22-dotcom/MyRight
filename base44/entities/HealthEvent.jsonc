@@ -39,6 +39,39 @@
           }
         }
       }
+    },
+    "facts": {
+      "type": "array",
+      "title": "\u05e2\u05d5\u05d1\u05d3\u05d5\u05ea \u05de\u05d0\u05d5\u05e9\u05e8\u05d5\u05ea (\u05d1\u05e1\u05d9\u05e1 \u05e2\u05d5\u05d1\u05d3\u05d5\u05ea \u05de\u05e9\u05d5\u05ea\u05e3)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fact_key": {
+            "type": "string",
+            "title": "\u05de\u05e4\u05ea\u05d7 \u05e7\u05e0\u05d5\u05e0\u05d9"
+          },
+          "value": {
+            "type": "string",
+            "title": "\u05e2\u05e8\u05da"
+          },
+          "certainty": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "uncertain"
+            ],
+            "default": "confirmed"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "user",
+              "event"
+            ],
+            "default": "user"
+          }
+        }
+      }
     }
   },
   "required": [

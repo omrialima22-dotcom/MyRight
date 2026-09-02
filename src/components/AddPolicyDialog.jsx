@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +12,9 @@ import { policyTypeOptions } from "@/lib/hebrew";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function AddPolicyDialog({ open, onOpenChange, onAdded }) {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState(null);
   const [fileUrl, setFileUrl] = useState("");
@@ -73,31 +74,24 @@ export default function AddPolicyDialog({ open, onOpenChange, onAdded }) {
         extraction_status: fileUrl ? "pending" : "pending"
       };
       const created = await base44.entities.Policy.create(payload);
-
-      // Only analyze when an actual file was uploaded — the engine reads the PDF.
+      onAdded?.();
+      setForm({ insurance_company: "", policy_type: "health", policy_number: "", start_date: "", end_date: "", coverage_amount: "", monthly_premium: "", notes: "" });
+      clearFile();
+      onOpenChange(false);
+      // With a file attached, go to the live reading experience — the engine
+      // reads the PDF there and surfaces real discoveries as they're saved.
       if (fileUrl) {
-        setAnalyzing(true);
-        try {
-          await base44.functions.invoke("analyzePolicy", { policy_id: created.id });
-          toast({ title: "הפוליסה נשמרה", description: "התחלנו לקרוא את המסמך – התוצאות יופיעו בדף הפוליסה" });
-        } catch (e) {
-          toast({ title: "הפוליסה נשמרה, אך הקריאה נכשלה – ניתן לנסות שוב מדף הפוליסה", variant: "destructive" });
-        }
-        setAnalyzing(false);
+        navigate(`/analysis?ids=${created.id}`);
       } else {
         toast({ title: "הפוליסה נשמרה" });
       }
-      onAdded?.();
-      onOpenChange(false);
-      setForm({ insurance_company: "", policy_type: "health", policy_number: "", start_date: "", end_date: "", coverage_amount: "", monthly_premium: "", notes: "" });
-      clearFile();
     } catch (e) {
       toast({ title: "שגיאה בשמירת הפוליסה", description: e.message, variant: "destructive" });
     }
     setSaving(false);
   };
 
-  const busy = saving || analyzing || uploading;
+  const busy = saving || uploading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,7 +175,7 @@ export default function AddPolicyDialog({ open, onOpenChange, onAdded }) {
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>ביטול</Button>
           <Button onClick={handleSubmit} disabled={busy}>
             {busy && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
-            {analyzing ? "קורא את הפוליסה…" : uploading ? "מעלה…" : saving ? "שומר…" : "שמירה וניתוח"}
+            {uploading ? "מעלה…" : saving ? "שומר…" : "שמירה וניתוח"}
           </Button>
         </DialogFooter>
       </DialogContent>

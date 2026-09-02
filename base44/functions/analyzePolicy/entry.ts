@@ -58,13 +58,16 @@ const UNREADABLE_MESSAGE =
   "לא הצלחנו לקרוא את תוכן הפוליסה בצורה אמינה. ייתכן שמדובר בקובץ סרוק ללא שכבת טקסט. כדי ש-MyRight תוכל לנתח את הפוליסה, מומלץ להעלות גרסה חיפושית (PDF עם שכבת טקסט) של המסמך. אנחנו לא רוצים לנחש עבורך.";
 
 export default async function(req) {
+  let base44;
+  let policyId = null;
   try {
-    const base44 = createClientFromRequest(req);
+    base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
     const { policy_id } = body;
+    policyId = policy_id;
     if (!policy_id) return Response.json({ error: 'חסר מזהה פוליסה' }, { status: 400 });
 
     const policy = await base44.entities.Policy.get(policy_id);
@@ -132,6 +135,10 @@ export default async function(req) {
       update.policy_number = policyMetadata.policyNumber;
     }
 
+    // STAGE 1 SAVE — persist the read document + identified metadata now, so the
+    // live UI can surface real discoveries (insurer, type, period) before coverages.
+    await base44.entities.Policy.update(policy_id, update);
+
     // STAGE 2: identify coverages from the extracted text (grounded, no invention).
     const contextText = buildContextText(documentSections);
     let coverages = [];
@@ -156,10 +163,12 @@ export default async function(req) {
 
     const analysis = overallSummary || buildFallbackSummary(policyMetadata, coverages, documentSections);
 
-    update.coverages = coverages;
-    update.analysis = analysis;
-    update.extraction_status = 'success';
-    await base44.entities.Policy.update(policy_id, update);
+    // STAGE 2 SAVE — persist identified coverages + plain summary; mark complete.
+    await base44.entities.Policy.update(policy_id, {
+      coverages,
+      analysis,
+      extraction_status: 'success'
+    });
 
     return Response.json({
       status: 'success',
@@ -169,6 +178,14 @@ export default async function(req) {
       analysis
     });
   } catch (error) {
+    if (base44 && policyId) {
+      try {
+        await base44.entities.Policy.update(policyId, {
+          extraction_status: 'failed',
+          extraction_issues: error?.message || 'שגיאה לא צפויה במהלך הניתוח'
+        });
+      } catch { /* best-effort */ }
+    }
     return Response.json({ error: error.message }, { status: 500 });
   }
 }

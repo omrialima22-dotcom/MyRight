@@ -66,6 +66,7 @@ export default function FindInsurance() {
   const handleConfirm = async () => {
     setProcessing(true);
     try {
+      const createdIds = [];
       for (const f of files) {
         const created = await base44.entities.Policy.create({
           insurance_company: "ביטוח פרטי (טרם זוהה)",
@@ -73,14 +74,10 @@ export default function FindInsurance() {
           file_url: f.file_url,
           notes: "הועלה דרך הליך מציאת הביטוחים. יש להשלים את פרטי החברה וסוג הביטוח לאחר זיהוי."
         });
-        try {
-          await base44.functions.invoke("analyzePolicy", { policy_id: created.id });
-        } catch {
-          // analysis failure shouldn't block the flow
-        }
+        createdIds.push(created.id);
       }
-      toast({ title: "המסמכים התקבלו — התחלנו לקרוא אותם", description: "התוצאות יופיעו בדף הפוליסות" });
-      navigate("/policies");
+      // The live reading screen triggers and shows the real analysis per policy.
+      navigate(`/analysis?ids=${createdIds.join(",")}`);
     } catch (e) {
       toast({ title: "משהו השתבש", description: e.message, variant: "destructive" });
     }
@@ -119,7 +116,7 @@ export default function FindInsurance() {
       <Layout>
         <div className="max-w-2xl mx-auto px-5 py-20 flex flex-col items-center justify-center gap-4">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-muted-foreground">קוראים את הפוליסות שהעלית… זה עשוי לקחת כמה דקות.</p>
+          <p className="text-muted-foreground">מכינים את הפוליסות לקריאה…</p>
         </div>
       </Layout>
     );

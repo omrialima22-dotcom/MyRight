@@ -4,70 +4,78 @@
 
 @layer base {
   :root {
-    --background: 36 33% 99%;
-    --foreground: 210 30% 14%;
+    --background: 40 33% 98.4%;
+    --foreground: 218 26% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 210 30% 14%;
+    --card-foreground: 218 26% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 30% 14%;
-    --primary: 184 72% 22%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 36 25% 95%;
-    --secondary-foreground: 184 50% 20%;
-    --muted: 36 20% 95%;
-    --muted-foreground: 200 10% 42%;
-    --accent: 28 85% 56%;
+    --popover-foreground: 218 26% 13%;
+    --primary: 218 24% 12%;
+    --primary-foreground: 40 33% 98%;
+    --secondary: 40 24% 95%;
+    --secondary-foreground: 218 24% 18%;
+    --muted: 40 22% 95%;
+    --muted-foreground: 215 12% 44%;
+    --accent: 199 60% 44%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 52%;
+    --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 36 20% 90%;
-    --input: 36 20% 90%;
-    --ring: 184 72% 22%;
-    --chart-1: 184 72% 30%;
-    --chart-2: 28 85% 56%;
-    --chart-3: 173 45% 40%;
+    --border: 40 16% 91%;
+    --input: 40 16% 91%;
+    --ring: 218 24% 12%;
+    --chart-1: 199 60% 46%;
+    --chart-2: 28 70% 58%;
+    --chart-3: 152 45% 46%;
     --chart-4: 43 80% 60%;
-    --chart-5: 340 70% 55%;
-    --radius: 0.85rem;
-    --font-heading: 'Frank Ruhl Libre', 'Assistant', ui-sans-serif, system-ui, sans-serif;
-    --font-body: 'Assistant', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Frank Ruhl Libre', 'Assistant', ui-sans-serif, system-ui, sans-serif;
+    --chart-5: 340 60% 56%;
+    --radius: 1.25rem;
+    --font-heading: 'Rubik', 'Heebo', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Heebo', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Rubik', 'Heebo', ui-sans-serif, system-ui, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 184 60% 18%;
-    --sidebar-foreground: 36 30% 92%;
-    --sidebar-primary: 28 85% 56%;
+
+    /* Pastel stage tints — used to differentiate steps in the guided journey */
+    --tint-blue: 207 68% 95%;
+    --tint-mint: 165 46% 93%;
+    --tint-warm: 36 60% 95%;
+    --tint-green: 142 46% 93%;
+    --tint-peach: 28 64% 95%;
+    --tint-pink: 345 48% 95%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 218 26% 16%;
+    --sidebar-primary: 218 24% 12%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 184 45% 26%;
-    --sidebar-accent-foreground: 36 30% 95%;
-    --sidebar-border: 184 40% 28%;
-    --sidebar-ring: 28 85% 60%;
+    --sidebar-accent: 40 24% 95%;
+    --sidebar-accent-foreground: 218 24% 14%;
+    --sidebar-border: 40 16% 92%;
+    --sidebar-ring: 218 24% 12%;
   }
 
   .dark {
-    --background: 200 25% 8%;
-    --foreground: 36 30% 95%;
-    --card: 200 25% 11%;
-    --card-foreground: 36 30% 95%;
-    --popover: 200 25% 11%;
-    --popover-foreground: 36 30% 95%;
-    --primary: 184 60% 45%;
-    --primary-foreground: 200 25% 10%;
-    --secondary: 200 20% 16%;
-    --secondary-foreground: 36 30% 95%;
-    --muted: 200 20% 16%;
-    --muted-foreground: 200 10% 65%;
-    --accent: 28 80% 58%;
-    --accent-foreground: 200 25% 10%;
-    --destructive: 0 62% 45%;
+    --background: 218 26% 9%;
+    --foreground: 40 30% 95%;
+    --card: 218 26% 12%;
+    --card-foreground: 40 30% 95%;
+    --popover: 218 26% 12%;
+    --popover-foreground: 40 30% 95%;
+    --primary: 40 30% 96%;
+    --primary-foreground: 218 26% 10%;
+    --secondary: 218 20% 16%;
+    --secondary-foreground: 40 30% 95%;
+    --muted: 218 20% 16%;
+    --muted-foreground: 215 12% 64%;
+    --accent: 199 55% 50%;
+    --accent-foreground: 218 26% 10%;
+    --destructive: 0 58% 48%;
     --destructive-foreground: 0 0% 98%;
-    --border: 200 20% 20%;
-    --input: 200 20% 20%;
-    --ring: 184 60% 45%;
-    --sidebar-background: 200 28% 10%;
-    --sidebar-foreground: 36 30% 92%;
-    --sidebar-primary: 28 85% 56%;
-    --sidebar-accent: 200 20% 18%;
-    --sidebar-border: 200 20% 20%;
+    --border: 218 20% 20%;
+    --input: 218 20% 20%;
+    --ring: 199 55% 50%;
+    --sidebar-background: 218 26% 11%;
+    --sidebar-foreground: 40 30% 92%;
+    --sidebar-accent: 218 20% 18%;
+    --sidebar-border: 218 20% 20%;
   }
 }
 
@@ -87,7 +95,7 @@
 
   h1, h2, h3, h4, h5 {
     @apply font-heading;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
   }
 }
 
@@ -105,7 +113,7 @@
     line-height: 1.85;
   }
   .prose-hebrew h1, .prose-hebrew h2, .prose-hebrew h3 {
-    font-weight: 600;
+    font-weight: 700;
     margin-top: 1rem;
     margin-bottom: 0.5rem;
   }

@@ -15,26 +15,32 @@ import { Loader2 } from "lucide-react";
 const STEPS = [
   {
     label: "הר הביטוח",
+    tint: "bg-tint-blue",
     help: "הר הביטוח הוא שירות ממשלתי שמרכז את כל מוצרי הביטוח הרשומים על שמך. בשלב הזה אנחנו רק פותחים את האתר. MyRight לעולם לא מבקשת את הסיסמה שלך."
   },
   {
     label: "כניסה",
+    tint: "bg-tint-blue",
     help: "ההזדהות נעשית מול האתר הרשמי של הר הביטוח בלבד. אל תזין פרטי התחברות בתוך MyRight."
   },
   {
     label: "מציאת הביטוחים",
+    tint: "bg-tint-mint",
     help: "אנחנו מחפשים ביטוחים פרטיים (בריאות, חיים, אובדן כושר עבודה וכו׳). לא צריך להחליט מה רלוונטי — MyRight תנתח את זה בהמשך."
   },
   {
     label: "הורדת פוליסות",
+    tint: "bg-tint-mint",
     help: "הפוליסה היא המסמך שמפרט מה הביטוח מכסה. אם הר הביטוח מפנה אותך לחברת הביטוח, היכנס לאזור האישי שם והורד את מסמכי הפוליסה."
   },
   {
     label: "העלאה ל-MyRight",
+    tint: "bg-tint-warm",
     help: "כאן אתה מעלה את קבצי הפוליסה שהורדת. אפשר להעלות כמה קבצים, למחוק קובץ שגוי ולהוסיף נוספים. רק אחרי שמאשרים שסיימת, נתחיל לבדוק."
   },
   {
     label: "לפני הניתוח",
+    tint: "bg-tint-peach",
     help: "לפני שמתחיל הניתוח אנחנו מוודאים שהעלית את כל הפוליסות. אם לא בטוח, אפשר לחזור להדרכה ולהוסיף עוד קבצים."
   }
 ];
@@ -81,7 +87,7 @@ export default function FindInsurance() {
           // analysis failure shouldn't block the flow
         }
       }
-      toast({ title: "המסמכים הועלו והניתוח התחיל" });
+      toast({ title: "המסמכים התקבלו — מתחילים לעבור עליהם" });
       navigate("/policies");
     } catch (e) {
       toast({ title: "משהו השתבש", description: e.message, variant: "destructive" });
@@ -121,7 +127,7 @@ export default function FindInsurance() {
       <Layout>
         <div className="max-w-2xl mx-auto px-5 py-20 flex flex-col items-center justify-center gap-4">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-muted-foreground">מעלה את המסמכים ומתחיל לנתח…</p>
+          <p className="text-muted-foreground">מעלה את המסמכים ומתחיל לעבוד…</p>
         </div>
       </Layout>
     );
@@ -129,7 +135,12 @@ export default function FindInsurance() {
 
   return (
     <Layout>
-      <WizardShell stepIndex={stepIndex} steps={STEPS} onBack={back}>
+      <WizardShell
+        stepIndex={stepIndex}
+        steps={STEPS}
+        onBack={back}
+        tintClass={STEPS[stepIndex]?.tint}
+      >
         {renderStep()}
       </WizardShell>
     </Layout>

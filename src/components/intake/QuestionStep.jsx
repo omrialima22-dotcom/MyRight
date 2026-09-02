@@ -16,7 +16,7 @@ export default function QuestionStep({ question, onAnswer, loading }) {
   const canSubmit = () => {
     if (type === "text") return textValue.trim().length >= 2;
     if (type === "date") return !!dateValue;
-    return false; // quick answers submit directly
+    return false;
   };
 
   const submitText = () => {
@@ -27,10 +27,10 @@ export default function QuestionStep({ question, onAnswer, loading }) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {title && <h2 className="text-xl lg:text-2xl font-heading font-bold mb-2">{title}</h2>}
-      {subtitle && <p className="text-muted-foreground text-sm lg:text-base leading-relaxed mb-4">{subtitle}</p>}
-      <p className="text-lg lg:text-xl font-medium leading-relaxed mb-6">{prompt}</p>
+    <div className="max-w-2xl animate-fade-up">
+      {title && <h2 className="font-display font-bold text-xl lg:text-2xl mb-2">{title}</h2>}
+      {subtitle && <p className="text-muted-foreground leading-relaxed mb-4">{subtitle}</p>}
+      <p className="text-xl lg:text-2xl font-heading font-semibold leading-snug mb-8">{prompt}</p>
 
       {type === "quick" && (
         <div className="grid gap-3">
@@ -39,10 +39,10 @@ export default function QuestionStep({ question, onAnswer, loading }) {
               key={i}
               disabled={loading}
               onClick={() => onAnswer(opt)}
-              className="group flex items-center justify-between w-full rounded-xl border border-border bg-card px-5 py-4 text-right text-base font-medium hover:border-primary hover:bg-primary/5 transition-all disabled:opacity-50"
+              className="group flex items-center justify-between w-full rounded-2xl bg-card px-6 py-5 text-right text-lg font-medium shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all disabled:opacity-50"
             >
               <span>{opt}</span>
-              <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all" />
+              <ArrowLeft className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all" />
             </button>
           ))}
         </div>
@@ -54,14 +54,14 @@ export default function QuestionStep({ question, onAnswer, loading }) {
             value={textValue}
             onChange={(e) => setTextValue(e.target.value)}
             placeholder="הקלידו כאן…"
-            className="min-h-[120px] text-base leading-relaxed"
+            className="min-h-[140px] text-lg leading-relaxed rounded-2xl bg-card shadow-soft focus-visible:ring-primary"
             autoFocus
           />
           <Button
             onClick={submitText}
             disabled={loading || !canSubmit()}
             size="lg"
-            className="w-full h-12 text-base font-medium"
+            className="w-full h-12 text-base rounded-2xl"
           >
             {loading ? (
               <>
@@ -69,7 +69,10 @@ export default function QuestionStep({ question, onAnswer, loading }) {
                 טוען…
               </>
             ) : (
-              "המשך"
+              <>
+                המשך
+                <ArrowLeft className="w-5 h-5" />
+              </>
             )}
           </Button>
         </div>
@@ -81,14 +84,14 @@ export default function QuestionStep({ question, onAnswer, loading }) {
             type="date"
             value={dateValue}
             onChange={(e) => setDateValue(e.target.value)}
-            className="h-12 text-base"
+            className="h-14 text-base rounded-2xl bg-card shadow-soft"
             autoFocus
           />
           <Button
             onClick={submitText}
             disabled={loading || !canSubmit()}
             size="lg"
-            className="w-full h-12 text-base font-medium"
+            className="w-full h-12 text-base rounded-2xl"
           >
             {loading ? (
               <>
@@ -96,14 +99,17 @@ export default function QuestionStep({ question, onAnswer, loading }) {
                 טוען…
               </>
             ) : (
-              "המשך"
+              <>
+                המשך
+                <ArrowLeft className="w-5 h-5" />
+              </>
             )}
           </Button>
         </div>
       )}
 
       {type === "quick" && loading && (
-        <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm mt-5">
+        <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm mt-6">
           <Loader2 className="w-4 h-4 animate-spin" />
           טוען…
         </div>

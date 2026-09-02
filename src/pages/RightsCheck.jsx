@@ -6,6 +6,7 @@ import StoryStep from "@/components/intake/StoryStep";
 import QuestionStep from "@/components/intake/QuestionStep";
 import TransitionStep from "@/components/intake/TransitionStep";
 import { useToast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
 
 export default function RightsCheck() {
   const { toast } = useToast();
@@ -65,7 +66,8 @@ export default function RightsCheck() {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto px-5 py-8 lg:py-12">
+      <div className={cn("min-h-[calc(100vh-60px)]", phase === "transition" ? "bg-tint-mint" : "bg-tint-blue")}>
+        <div className="max-w-3xl mx-auto px-5 py-8 lg:py-12">
         {phase !== "story" && (
           <ProgressHeader label={progressLabel} fillPercent={fillPercent} />
         )}
@@ -79,6 +81,7 @@ export default function RightsCheck() {
         {phase === "transition" && (
           <TransitionStep summary={summary} timeline={timeline} />
         )}
+        </div>
       </div>
     </Layout>
   );

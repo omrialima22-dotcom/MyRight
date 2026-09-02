@@ -59,7 +59,14 @@ export default function ClaimDetail() {
         insurance_company: policy?.insurance_company,
         policy_number: policy?.policy_number,
         incident_date: claim.incident_date ? formatDate(claim.incident_date) : null,
-        user_name: user?.full_name
+        user_name: user?.full_name,
+        coverage_name: claim.coverage_name,
+        coverage_conditions: policy?.coverages?.find((c) => (c.sourceClause || "") === (claim.source_clause || ""))?.conditions || "",
+        source_clause: claim.source_clause,
+        source_page: claim.source_page,
+        policy_requirements: "",
+        user_answers: claim.user_answers,
+        eligibility_summary: claim.eligibility_summary
       });
       const content = res.data.content;
       const field = type === "doctor" ? "doctor_letter" : "claim_letter";
@@ -133,6 +140,17 @@ export default function ClaimDetail() {
           </span>
         </div>
 
+        {/* Potential eligibility (grounded in the matched coverage) */}
+        {claim.eligibility_summary && (
+          <div className="bg-tint-mint rounded-2xl border border-border p-5 mb-6">
+            <h3 className="text-sm font-medium text-accent mb-2">סיכום הזכאות האפשרית</h3>
+            <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">{claim.eligibility_summary}</p>
+            {claim.coverage_name && (
+              <p className="text-xs text-muted-foreground mt-2">כיסוי: {claim.coverage_name}{claim.source_clause ? ` · סעיף ${claim.source_clause}` : ""}</p>
+            )}
+          </div>
+        )}
+
         {/* Description */}
         <div className="bg-card rounded-2xl border border-border p-5 mb-6">
           <h3 className="text-sm font-medium text-muted-foreground mb-2">תיאור המקרה</h3>
@@ -163,8 +181,15 @@ export default function ClaimDetail() {
                   ) : (
                     <Circle className="w-5 h-5 text-muted-foreground/40 shrink-0 mt-0.5" />
                   )}
-                  <span className={`text-[15px] leading-relaxed ${item.done ? "line-through text-muted-foreground" : ""}`}>
-                    {item.text}
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-[15px] leading-relaxed ${item.done ? "line-through text-muted-foreground" : ""}`}>
+                      {item.text}
+                    </span>
+                    {item.category && (
+                      <span className={`inline-block mt-1 text-[11px] px-2 py-0.5 rounded-full ${item.category === "required" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                        {item.category === "required" ? "נדרש לפי הפוליסה" : "מומלץ לחיזוק התביעה"}
+                      </span>
+                    )}
                   </span>
                 </button>
               ))}

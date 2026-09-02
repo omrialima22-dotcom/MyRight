@@ -97,6 +97,7 @@ export default function LiveAnalysis() {
     );
   }
 
+  const firstSuccessId = policies.find((p) => p.extraction_status === "success")?.id;
   const stage = deriveStage(policies);
   const steps = progressStates(stage);
   const discoveries = deriveDiscoveries(policies);
@@ -111,7 +112,10 @@ export default function LiveAnalysis() {
       <div className="max-w-2xl mx-auto px-5 py-8 sm:py-12">
         {showComplete ? (
           <div className="space-y-4">
-            <AnalysisComplete policies={policies} onDone={() => navigate("/policies")} />
+            <AnalysisComplete
+              policies={policies}
+              onDone={() => navigate(firstSuccessId ? `/eligibility?policy=${firstSuccessId}` : "/policies")}
+            />
             {failedCount > 0 && (
               <AnalysisFailure
                 count={failedCount}

@@ -18,19 +18,43 @@ export default async function(req) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { claim_title, claim_description, policy_type } = body;
+    const {
+      claim_title, claim_description, policy_type,
+      coverage_name, coverage_conditions, source_clause, policy_requirements, eligibility_summary
+    } = body;
     if (!claim_title || !claim_description) {
       return Response.json({ error: 'חובה לציין כותרת ותיאור לתביעה' }, { status: 400 });
     }
 
-    const prompt = `${buildSystemPrompt('אתה מכין צ\'קליסט פעולות ומסמכים להגשת תביעת ביטוח.')}
+    const coverageBlock = coverage_name
+      ? [
+          "הכיסוי הרלוונטי שנמצא בפוליסה:",
+          `- שם הכיסוי: ${coverage_name}`,
+          coverage_conditions ? `- תנאי הכיסוי: ${coverage_conditions}` : '',
+          source_clause ? `- סעיף מקור: ${source_clause}` : '',
+          policy_requirements ? `- דרישות הפוליסה (פשוט): ${policy_requirements}` : '',
+          eligibility_summary ? `- סיכום הזכאות האפשרית: ${eligibility_summary}` : ''
+        ].filter(Boolean).join("\n")
+      : "";
+
+    const prompt = `${buildSystemPrompt("אתה מכין צ'קליסט מסמכים ופעולות להגשת תביעת ביטוח, מבוסס על הפוליסה והכיסוי הרלוונטי.")}
 
 פרטי התביעה:
 - כותרת: ${claim_title}
 - תיאור המקרה: ${claim_description}
 - סוג ביטוח: ${POLICY_TYPE_LABELS[policy_type] || policy_type || 'לא צוין'}
 
-צור רשימה מסודרת של פעולות ומסמכים שהמשתמש צריך לאסוף או לבצע כדי להגיש את התביעה. כל פריט צריך להיות פשוט, ברור ומנוסח בעברית יומיומית. כלול גם פעולות פרקטיות (למשל: לאסוף קבלות, לקבל אישור רופא, לצלם נזק) וגם מסמכים רלוונטיים.`;
+${coverageBlock}
+
+צור רשימה של פעולות ומסמכים. לכל פריט ציין קטגוריה:
+- "required" = נדרש לפי הפוליסה / להגשת התביעה (מבוסס על תנאי הכיסוי וסעיפי הפוליסה).
+- "recommended" = מומלץ לצרף כדי לחזק ולהבהיר את התביעה (לא חובה).
+
+כללים:
+- אל תמציא מסמך נדרש שלא נובע מהפוליסה או מהליך התביעה הרגיל.
+- אם מסמך נדרש מופיע מפורשות בתנאי הכיסוי, ציין זאת כ-required.
+- כל פריט בעברית פשוטה וברורה.
+- כלול לפחות: טופס תביעה של חברת הביטוח, וכל מסמך שתנאי הכיסוי מחייבים.`;
 
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
@@ -39,7 +63,14 @@ export default async function(req) {
         properties: {
           items: {
             type: 'array',
-            items: { type: 'string' }
+            items: {
+              type: 'object',
+              properties: {
+                text: { type: 'string' },
+                category: { type: 'string', enum: ['required', 'recommended'] }
+              },
+              required: ['text', 'category']
+            }
           }
         },
         required: ['items']
@@ -47,8 +78,15 @@ export default async function(req) {
       model: 'automatic'
     });
 
-    const items = Array.isArray(result?.items) ? result.items : [];
-    const checklist = items.map((text) => ({ text, done: false }));
+    const raw = Array.isArray(result?.items) ? result.items : [];
+    const checklist = raw.map((it) => {
+      if (typeof it === 'string') return { text: it, category: 'required', done: false };
+      return {
+        text: it.text || '',
+        category: it.category === 'recommended' ? 'recommended' : 'required',
+        done: false
+      };
+    });
     return Response.json({ checklist });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

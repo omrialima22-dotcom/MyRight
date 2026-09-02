@@ -41,6 +41,15 @@ export default function RightsCheck() {
       if (data.done) {
         setSummary(data.summary || "");
         setPhase("transition");
+        // Persist the health event so eligibility exploration can match it against policies.
+        try {
+          await base44.entities.HealthEvent.create({
+            story: currentStory,
+            answers: currentAnswers,
+            summary: data.summary || "",
+            timeline: data.timeline || []
+          });
+        } catch {}
       } else if (data.question) {
         setQuestion(data.question);
         setPhase("questions");

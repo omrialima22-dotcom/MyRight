@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import Layout from "@/components/Layout";
 import HebrewMarkdown from "@/components/HebrewMarkdown";
+import PolicyAnalysis from "@/components/policy/PolicyAnalysis";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ShieldCheck, Loader2, Sparkles, RefreshCw } from "lucide-react";
 import { policyTypeLabels, formatCurrency, formatDate } from "@/lib/hebrew";
@@ -26,20 +27,27 @@ export default function PolicyDetail() {
 
   useEffect(() => { load(); }, [id]);
 
+  // Poll while the document is being read in the background.
+  useEffect(() => {
+    if (policy?.extraction_status !== "processing") return;
+    let tries = 0;
+    const t = setInterval(async () => {
+      tries++;
+      try {
+        const p = await base44.entities.Policy.get(id);
+        setPolicy(p);
+        if (p.extraction_status !== "processing" || tries > 40) clearInterval(t);
+      } catch {}
+    }, 5000);
+    return () => clearInterval(t);
+  }, [policy?.extraction_status, id]);
+
   const reanalyze = async () => {
     setAnalyzing(true);
     try {
-      const res = await base44.functions.invoke("analyzePolicy", {
-        insurance_company: policy.insurance_company,
-        policy_type: policy.policy_type,
-        policy_number: policy.policy_number,
-        coverage_amount: policy.coverage_amount,
-        monthly_premium: policy.monthly_premium,
-        notes: policy.notes
-      });
-      await base44.entities.Policy.update(id, { analysis: res.data.analysis });
-      setPolicy((p) => ({ ...p, analysis: res.data.analysis }));
-      toast({ title: "הניתוח עודכן" });
+      await base44.functions.invoke("analyzePolicy", { policy_id: id });
+      await load();
+      toast({ title: "התחלנו לקרוא את הפוליסה", description: "זה עשוי לקחת כמה רגעים" });
     } catch (e) {
       toast({ title: "הניתוח נכשל", variant: "destructive" });
     }
@@ -100,31 +108,8 @@ export default function PolicyDetail() {
           </div>
         )}
 
-        {/* Analysis */}
-        <div className="bg-card rounded-2xl border border-border p-6">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <h2 className="font-heading text-lg font-semibold">הסבר הפוליסה</h2>
-            </div>
-            <Button variant="outline" size="sm" onClick={reanalyze} disabled={analyzing}>
-              {analyzing ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <RefreshCw className="w-4 h-4 ml-2" />}
-              {analyzing ? "מנתח…" : "ניתוח מחדש"}
-            </Button>
-          </div>
-          {analyzing ? (
-            <div className="flex items-center gap-2 py-10 text-muted-foreground justify-center">
-              <Loader2 className="w-5 h-5 animate-spin" /> מנתח את הפוליסה, רגע…
-            </div>
-          ) : policy.analysis ? (
-            <HebrewMarkdown content={policy.analysis} />
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">עדיין אין ניתוח לפוליסה הזו.</p>
-              <Button onClick={reanalyze} disabled={analyzing}>יצירת ניתוח</Button>
-            </div>
-          )}
-        </div>
+        {/* Analysis engine */}
+        <PolicyAnalysis policy={policy} analyzing={analyzing} onRun={reanalyze} />
       </div>
     </Layout>
   );

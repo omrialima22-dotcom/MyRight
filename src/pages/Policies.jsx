@@ -22,6 +22,15 @@ export default function Policies() {
 
   useEffect(() => { load(); }, []);
 
+  // Silently refresh while any policy is still being read in the background.
+  useEffect(() => {
+    if (!policies.some((p) => p.extraction_status === "processing")) return;
+    const t = setInterval(async () => {
+      try { setPolicies(await base44.entities.Policy.list("-created_date", 100)); } catch {}
+    }, 5000);
+    return () => clearInterval(t);
+  }, [policies]);
+
   return (
     <Layout>
       <div className="max-w-5xl mx-auto px-5 py-8 lg:py-12">
@@ -66,7 +75,13 @@ export default function Policies() {
                   <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all" />
                 </div>
                 <h3 className="font-heading font-semibold text-lg mb-1">{p.insurance_company}</h3>
-                <p className="text-sm text-muted-foreground mb-3">{policyTypeLabels[p.policy_type] || p.policy_type}</p>
+                <p className="text-sm text-muted-foreground mb-3 flex items-center gap-2 flex-wrap">
+                  {policyTypeLabels[p.policy_type] || p.policy_type}
+                  {p.extraction_status === "processing" && <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><Loader2 className="w-3 h-3 animate-spin" /> בקריאה</span>}
+                  {p.extraction_status === "unreadable" && <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">לא נקראה</span>}
+                  {p.extraction_status === "failed" && <span className="text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">שגיאה</span>}
+                  {p.extraction_status === "success" && <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">נקראה</span>}
+                </p>
                 <div className="space-y-1.5 text-sm border-t border-border pt-3">
                   {p.coverage_amount != null && (
                     <div className="flex justify-between"><span className="text-muted-foreground">סכום כיסוי</span><span className="font-medium">{formatCurrency(p.coverage_amount)}</span></div>

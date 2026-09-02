@@ -74,20 +74,12 @@ export default function FindInsurance() {
           notes: "הועלה דרך הליך מציאת הביטוחים. יש להשלים את פרטי החברה וסוג הביטוח לאחר זיהוי."
         });
         try {
-          const res = await base44.functions.invoke("analyzePolicy", {
-            insurance_company: created.insurance_company,
-            policy_type: created.policy_type,
-            file_url: created.file_url,
-            notes: created.notes
-          });
-          if (res.data?.analysis) {
-            await base44.entities.Policy.update(created.id, { analysis: res.data.analysis });
-          }
+          await base44.functions.invoke("analyzePolicy", { policy_id: created.id });
         } catch {
           // analysis failure shouldn't block the flow
         }
       }
-      toast({ title: "המסמכים התקבלו — מתחילים לעבור עליהם" });
+      toast({ title: "המסמכים התקבלו — התחלנו לקרוא אותם", description: "התוצאות יופיעו בדף הפוליסות" });
       navigate("/policies");
     } catch (e) {
       toast({ title: "משהו השתבש", description: e.message, variant: "destructive" });
@@ -127,7 +119,7 @@ export default function FindInsurance() {
       <Layout>
         <div className="max-w-2xl mx-auto px-5 py-20 flex flex-col items-center justify-center gap-4">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-muted-foreground">מעלה את המסמכים ומתחיל לעבוד…</p>
+          <p className="text-muted-foreground">קוראים את הפוליסות שהעלית… זה עשוי לקחת כמה דקות.</p>
         </div>
       </Layout>
     );

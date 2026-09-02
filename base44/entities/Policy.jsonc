@@ -53,7 +53,128 @@
     },
     "analysis": {
       "type": "string",
-      "title": "\u05e0\u05d9\u05ea\u05d5\u05d7 AI \u05e9\u05dc \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4"
+      "title": "\u05d4\u05e1\u05d1\u05e8 \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4 \u05d1\u05e2\u05d1\u05e8\u05d9\u05ea \u05e4\u05e9\u05d5\u05d8\u05d4"
+    },
+    "extraction_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "processing",
+        "success",
+        "unreadable",
+        "failed"
+      ],
+      "title": "\u05e1\u05d8\u05d8\u05d5\u05e1 \u05e7\u05e8\u05d9\u05d0\u05ea \u05d4\u05de\u05e1\u05de\u05da",
+      "default": "pending"
+    },
+    "extraction_issues": {
+      "type": "string",
+      "title": "\u05d4\u05e2\u05e8\u05d5\u05ea \u05e2\u05dc \u05d0\u05d9\u05db\u05d5\u05ea \u05d4\u05e7\u05e8\u05d9\u05d0\u05d4"
+    },
+    "policy_metadata": {
+      "type": "object",
+      "title": "\u05e4\u05e8\u05d8\u05d9\u05dd \u05e9\u05d6\u05d5\u05d4\u05d5 \u05d1\u05de\u05e1\u05de\u05da",
+      "properties": {
+        "insurerName": {
+          "type": "string"
+        },
+        "policyName": {
+          "type": "string"
+        },
+        "policyNumber": {
+          "type": "string"
+        },
+        "insurancePeriod": {
+          "type": "string"
+        },
+        "policyType": {
+          "type": "string"
+        },
+        "definitions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "document_sections": {
+      "type": "array",
+      "title": "\u05de\u05e7\u05d8\u05e2\u05d9 \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4 \u05e9\u05d7\u05d5\u05dc\u05e6\u05d5",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pageStart": {
+            "type": "number",
+            "title": "\u05e2\u05de\u05d5\u05d3 \u05d4\u05ea\u05d7\u05dc\u05d4"
+          },
+          "pageEnd": {
+            "type": "number",
+            "title": "\u05e2\u05de\u05d5\u05d3 \u05e1\u05d9\u05d5\u05dd"
+          },
+          "sectionTitle": {
+            "type": "string",
+            "title": "\u05db\u05d5\u05ea\u05e8\u05ea \u05d4\u05e1\u05e2\u05d9\u05e3"
+          },
+          "clauseNumber": {
+            "type": "string",
+            "title": "\u05de\u05e1\u05e4\u05e8 \u05e1\u05e2\u05d9\u05e3"
+          },
+          "text": {
+            "type": "string",
+            "title": "\u05ea\u05d5\u05db\u05df \u05d4\u05de\u05e7\u05d8\u05e2"
+          }
+        }
+      }
+    },
+    "coverages": {
+      "type": "array",
+      "title": "\u05db\u05d9\u05e1\u05d5\u05d9\u05d9\u05dd \u05e9\u05d6\u05d5\u05d4\u05d5 \u05d1\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "\u05e9\u05dd \u05d4\u05db\u05d9\u05e1\u05d5\u05d9"
+          },
+          "benefit": {
+            "type": "string",
+            "title": "\u05e1\u05db\u05d5\u05dd/\u05e7\u05e6\u05d1\u05ea \u05d4\u05e4\u05d9\u05e6\u05d5\u05d9"
+          },
+          "conditions": {
+            "type": "string",
+            "title": "\u05ea\u05e0\u05d0\u05d9 \u05d6\u05db\u05d0\u05d5\u05ea"
+          },
+          "exclusions": {
+            "type": "string",
+            "title": "\u05d7\u05e8\u05d9\u05d2\u05d9\u05dd"
+          },
+          "waitingPeriod": {
+            "type": "string",
+            "title": "\u05ea\u05e7\u05d5\u05e4\u05ea \u05d4\u05de\u05ea\u05e0\u05d4/\u05d0\u05db\u05e9\u05e8\u05d4"
+          },
+          "eligibility": {
+            "type": "string",
+            "title": "\u05ea\u05e0\u05d0\u05d9 \u05d6\u05db\u05d0\u05d5\u05ea \u05de\u05e4\u05d5\u05e8\u05d8\u05d9\u05dd"
+          },
+          "sourcePage": {
+            "type": "number",
+            "title": "\u05e2\u05de\u05d5\u05d3 \u05de\u05e7\u05d5\u05e8"
+          },
+          "sourceClause": {
+            "type": "string",
+            "title": "\u05e1\u05e2\u05d9\u05e3 \u05de\u05e7\u05d5\u05e8"
+          },
+          "sourceText": {
+            "type": "string",
+            "title": "\u05e0\u05d5\u05e1\u05d7 \u05de\u05e7\u05d5\u05e8\u05d9 \u05de\u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4"
+          },
+          "plainExplanation": {
+            "type": "string",
+            "title": "\u05d4\u05e1\u05d1\u05e8 \u05d1\u05de\u05d9\u05dc\u05d9\u05dd \u05e4\u05e9\u05d5\u05d8\u05d5\u05ea"
+          }
+        }
+      }
     }
   },
   "required": [

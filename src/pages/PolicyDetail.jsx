@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import Layout from "@/components/Layout";
 import HebrewMarkdown from "@/components/HebrewMarkdown";
 import PolicyAnalysis from "@/components/policy/PolicyAnalysis";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ShieldCheck, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowRight, ShieldCheck, Loader2, Sparkles, RefreshCw, Trash2 } from "lucide-react";
+import DeletePolicyDialog from "@/components/DeletePolicyDialog";
 import { policyTypeLabels, formatCurrency, formatDate } from "@/lib/hebrew";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -15,6 +16,8 @@ export default function PolicyDetail() {
   const [policy, setPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
@@ -78,9 +81,14 @@ export default function PolicyDetail() {
   return (
     <Layout>
       <div className="max-w-3xl mx-auto px-5 py-8 lg:py-12">
-        <Link to="/policies" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary mb-5">
-          <ArrowRight className="w-4 h-4" /> חזרה לפוליסות
-        </Link>
+        <div className="flex items-center justify-between mb-5">
+          <Link to="/policies" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+            <ArrowRight className="w-4 h-4" /> חזרה לפוליסות
+          </Link>
+          <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="text-destructive border-destructive/30 hover:text-destructive hover:bg-destructive/10 gap-1.5">
+            <Trash2 className="w-4 h-4" /> מחיקת פוליסה
+          </Button>
+        </div>
 
         {/* Header card */}
         <div className="bg-gradient-to-bl from-primary to-primary/80 rounded-3xl p-6 lg:p-8 text-white mb-6 shadow-lg">
@@ -110,6 +118,13 @@ export default function PolicyDetail() {
 
         {/* Analysis engine */}
         <PolicyAnalysis policy={policy} analyzing={analyzing} onRun={reanalyze} />
+
+        <DeletePolicyDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          policy={policy}
+          onDeleted={() => navigate("/policies")}
+        />
       </div>
     </Layout>
   );

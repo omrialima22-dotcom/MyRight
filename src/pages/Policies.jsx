@@ -3,13 +3,15 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import Layout from "@/components/Layout";
 import AddPolicyDialog from "@/components/AddPolicyDialog";
-import { Plus, ShieldCheck, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, ShieldCheck, ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import DeletePolicyDialog from "@/components/DeletePolicyDialog";
 import { policyTypeLabels, formatCurrency, formatDate } from "@/lib/hebrew";
 
 export default function Policies() {
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -72,7 +74,17 @@ export default function Policies() {
                   <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                     <ShieldCheck className="w-5 h-5 text-primary" />
                   </div>
-                  <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all shrink-0" />
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget(p); }}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                      aria-label="מחיקת פוליסה"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all" />
+                  </div>
                 </div>
                 <h3 className="font-heading font-semibold text-lg mb-1 break-words">{p.insurance_company}</h3>
                 <p className="text-sm text-muted-foreground mb-3 flex items-center gap-2 flex-wrap">
@@ -100,6 +112,12 @@ export default function Policies() {
       </div>
 
       <AddPolicyDialog open={open} onOpenChange={setOpen} onAdded={load} />
+      <DeletePolicyDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        policy={deleteTarget}
+        onDeleted={() => { setDeleteTarget(null); load(); }}
+      />
     </Layout>
   );
 }

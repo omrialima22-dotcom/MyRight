@@ -354,6 +354,10 @@ const FREEZE_RULES = [
 
 export default async function(req) {
   try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await req.json();
     const { requirements, facts } = body;
 
@@ -368,10 +372,6 @@ export default async function(req) {
     if (!Array.isArray(coverages) || coverages.length === 0) {
       return Response.json({ error: 'חסרים כיסויים' }, { status: 400 });
     }
-
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const coverageBlock = coverages.map((c) => ({
       key: c.key,

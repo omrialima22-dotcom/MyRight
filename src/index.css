@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 33% 98.4%;
+    --foreground: 218 26% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 218 26% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 218 26% 13%;
+    --primary: 218 24% 12%;
+    --primary-foreground: 40 33% 98%;
+    --secondary: 40 24% 95%;
+    --secondary-foreground: 218 24% 18%;
+    --muted: 40 22% 95%;
+    --muted-foreground: 215 12% 44%;
+    --accent: 199 60% 44%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 16% 91%;
+    --input: 40 16% 91%;
+    --ring: 218 24% 12%;
+    --chart-1: 199 60% 46%;
+    --chart-2: 28 70% 58%;
+    --chart-3: 152 45% 46%;
+    --chart-4: 43 80% 60%;
+    --chart-5: 340 60% 56%;
+    --radius: 1.25rem;
+    --font-heading: 'Rubik', 'Heebo', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Heebo', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Rubik', 'Heebo', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    /* Pastel stage tints — used to differentiate steps in the guided journey */
+    --tint-blue: 207 68% 95%;
+    --tint-mint: 165 46% 93%;
+    --tint-warm: 36 60% 95%;
+    --tint-green: 142 46% 93%;
+    --tint-peach: 28 64% 95%;
+    --tint-pink: 345 48% 95%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 218 26% 16%;
+    --sidebar-primary: 218 24% 12%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 24% 95%;
+    --sidebar-accent-foreground: 218 24% 14%;
+    --sidebar-border: 40 16% 92%;
+    --sidebar-ring: 218 24% 12%;
+  }
+
+  .dark {
+    --background: 218 26% 9%;
+    --foreground: 40 30% 95%;
+    --card: 218 26% 12%;
+    --card-foreground: 40 30% 95%;
+    --popover: 218 26% 12%;
+    --popover-foreground: 40 30% 95%;
+    --primary: 40 30% 96%;
+    --primary-foreground: 218 26% 10%;
+    --secondary: 218 20% 16%;
+    --secondary-foreground: 40 30% 95%;
+    --muted: 218 20% 16%;
+    --muted-foreground: 215 12% 64%;
+    --accent: 199 55% 50%;
+    --accent-foreground: 218 26% 10%;
+    --destructive: 0 58% 48%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 218 20% 20%;
+    --input: 218 20% 20%;
+    --ring: 199 55% 50%;
+    --sidebar-background: 218 26% 11%;
+    --sidebar-foreground: 40 30% 92%;
+    --sidebar-accent: 218 20% 18%;
+    --sidebar-border: 218 20% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    direction: rtl;
+    /* Prevent any horizontal page scroll on mobile — the off-canvas RTL drawer and
+       any wide element must never create a horizontal scrollbar. */
+    overflow-x: hidden;
+    max-width: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    font-feature-settings: "kern";
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  h1, h2, h3, h4, h5 {
+    @apply font-heading;
+    letter-spacing: -0.015em;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+  }
+  .prose-hebrew p {
+    margin-bottom: 0.75rem;
+    line-height: 1.85;
+  }
+  .prose-hebrew h1, .prose-hebrew h2, .prose-hebrew h3 {
+    font-weight: 700;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+  }
+}

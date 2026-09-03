@@ -1,0 +1,270 @@
+{
+  "name": "Policy",
+  "type": "object",
+  "properties": {
+    "insurance_company": {
+      "type": "string",
+      "title": "\u05d7\u05d1\u05e8\u05ea \u05d1\u05d9\u05d8\u05d5\u05d7"
+    },
+    "policy_type": {
+      "type": "string",
+      "enum": [
+        "health",
+        "life",
+        "car",
+        "home",
+        "travel",
+        "disability",
+        "other"
+      ],
+      "title": "\u05e1\u05d5\u05d2 \u05d1\u05d9\u05d8\u05d5\u05d7",
+      "default": "health"
+    },
+    "policy_number": {
+      "type": "string",
+      "title": "\u05de\u05e1\u05e4\u05e8 \u05e4\u05d5\u05dc\u05d9\u05e1\u05d4"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "\u05ea\u05d0\u05e8\u05d9\u05da \u05ea\u05d7\u05d9\u05dc\u05ea \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "title": "\u05ea\u05d0\u05e8\u05d9\u05da \u05e1\u05d9\u05d5\u05dd \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4"
+    },
+    "coverage_amount": {
+      "type": "number",
+      "title": "\u05e1\u05db\u05d5\u05dd \u05db\u05d9\u05e1\u05d5\u05d9"
+    },
+    "monthly_premium": {
+      "type": "number",
+      "title": "\u05e4\u05e8\u05de\u05d9\u05d4 \u05d7\u05d5\u05d3\u05e9\u05d9\u05ea"
+    },
+    "notes": {
+      "type": "string",
+      "title": "\u05d4\u05e2\u05e8\u05d5\u05ea \u05e0\u05d5\u05e1\u05e4\u05d5\u05ea"
+    },
+    "file_url": {
+      "type": "string",
+      "title": "\u05e7\u05d5\u05d1\u05e5 \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4"
+    },
+    "analysis": {
+      "type": "string",
+      "title": "\u05d4\u05e1\u05d1\u05e8 \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4 \u05d1\u05e2\u05d1\u05e8\u05d9\u05ea \u05e4\u05e9\u05d5\u05d8\u05d4"
+    },
+    "extraction_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "processing",
+        "success",
+        "unreadable",
+        "failed"
+      ],
+      "title": "\u05e1\u05d8\u05d8\u05d5\u05e1 \u05e7\u05e8\u05d9\u05d0\u05ea \u05d4\u05de\u05e1\u05de\u05da",
+      "default": "pending"
+    },
+    "extraction_issues": {
+      "type": "string",
+      "title": "\u05d4\u05e2\u05e8\u05d5\u05ea \u05e2\u05dc \u05d0\u05d9\u05db\u05d5\u05ea \u05d4\u05e7\u05e8\u05d9\u05d0\u05d4"
+    },
+    "policy_metadata": {
+      "type": "object",
+      "title": "\u05e4\u05e8\u05d8\u05d9\u05dd \u05e9\u05d6\u05d5\u05d4\u05d5 \u05d1\u05de\u05e1\u05de\u05da",
+      "properties": {
+        "insurerName": {
+          "type": "string"
+        },
+        "policyName": {
+          "type": "string"
+        },
+        "policyNumber": {
+          "type": "string"
+        },
+        "insurancePeriod": {
+          "type": "string"
+        },
+        "policyType": {
+          "type": "string"
+        },
+        "definitions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "insured_people": {
+      "type": "array",
+      "title": "\u05d4\u05de\u05d1\u05d5\u05d8\u05d7\u05d9\u05dd \u05d1\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "\u05ea\u05d5\u05d5\u05d9\u05ea \u05d4\u05de\u05d1\u05d5\u05d8\u05d7 \u05db\u05e4\u05d9 \u05e9\u05de\u05d5\u05e4\u05d9\u05e2 \u05d1\u05de\u05e1\u05de\u05da"
+          },
+          "fullName": {
+            "type": "string",
+            "title": "\u05e9\u05dd \u05de\u05dc\u05d0 (\u05d0\u05dd \u05d6\u05d5\u05d4\u05d4)"
+          },
+          "identificationNumber": {
+            "type": "string",
+            "title": "\u05de\u05e1\u05e4\u05e8 \u05d6\u05d4\u05d5\u05ea (\u05d0\u05dd \u05de\u05d5\u05e4\u05d9\u05e2)"
+          },
+          "sourcePage": {
+            "type": "number",
+            "title": "\u05e2\u05de\u05d5\u05d3 \u05de\u05e7\u05d5\u05e8"
+          },
+          "sourceText": {
+            "type": "string",
+            "title": "\u05e0\u05d5\u05e1\u05d7 \u05de\u05e7\u05d5\u05e8\u05d9"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "default": "medium"
+          }
+        }
+      }
+    },
+    "confirmed_insured_role": {
+      "type": "string",
+      "title": "\u05d4\u05de\u05d1\u05d5\u05d8\u05d7 \u05e9\u05d4\u05de\u05e9\u05ea\u05de\u05e9 \u05d0\u05d9\u05e9\u05e8 \u05e9\u05d4\u05d5\u05d0"
+    },
+    "confirmed_insured_name": {
+      "type": "string",
+      "title": "\u05e9\u05dd \u05d4\u05de\u05d1\u05d5\u05d8\u05d7 \u05e9\u05d0\u05d5\u05e9\u05e8"
+    },
+    "confirmed_at": {
+      "type": "string",
+      "title": "\u05de\u05d5\u05e2\u05d3 \u05d0\u05d9\u05e9\u05d5\u05e8 \u05d4\u05d6\u05d9\u05d4\u05d5\u05d9"
+    },
+    "document_sections": {
+      "type": "array",
+      "title": "\u05de\u05e7\u05d8\u05e2\u05d9 \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4 \u05e9\u05d7\u05d5\u05dc\u05e6\u05d5",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pageStart": {
+            "type": "number"
+          },
+          "pageEnd": {
+            "type": "number"
+          },
+          "sectionTitle": {
+            "type": "string"
+          },
+          "clauseNumber": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "coverages": {
+      "type": "array",
+      "title": "\u05db\u05d9\u05e1\u05d5\u05d9\u05d9\u05dd \u05e9\u05d6\u05d5\u05d4\u05d5 \u05d1\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4 (\u05dc\u05e4\u05d9 \u05de\u05d1\u05d5\u05d8\u05d7)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "\u05e9\u05dd \u05d4\u05db\u05d9\u05e1\u05d5\u05d9"
+          },
+          "productMaximum": {
+            "type": "string",
+            "title": "\u05ea\u05e7\u05e8\u05ea \u05de\u05d5\u05e6\u05e8 / \u05de\u05e7\u05e1\u05d9\u05de\u05d5\u05dd \u05db\u05dc\u05dc\u05d9 (\u05dc\u05d0 \u05e1\u05db\u05d5\u05dd \u05d0\u05d9\u05e9\u05d9)"
+          },
+          "benefit": {
+            "type": "string",
+            "title": "\u05e1\u05db\u05d5\u05dd/\u05e7\u05e6\u05d1\u05ea \u05d4\u05e4\u05d9\u05e6\u05d5\u05d9 (\u05db\u05dc\u05dc\u05d9)"
+          },
+          "conditions": {
+            "type": "string",
+            "title": "\u05ea\u05e0\u05d0\u05d9 \u05d6\u05db\u05d0\u05d5\u05ea"
+          },
+          "exclusions": {
+            "type": "string",
+            "title": "\u05d7\u05e8\u05d9\u05d2\u05d9\u05dd"
+          },
+          "waitingPeriod": {
+            "type": "string",
+            "title": "\u05ea\u05e7\u05d5\u05e4\u05ea \u05d4\u05de\u05ea\u05e0\u05d4/\u05d0\u05db\u05e9\u05e8\u05d4"
+          },
+          "eligibility": {
+            "type": "string",
+            "title": "\u05ea\u05e0\u05d0\u05d9 \u05d6\u05db\u05d0\u05d5\u05ea \u05de\u05e4\u05d5\u05e8\u05d8\u05d9\u05dd"
+          },
+          "sourcePage": {
+            "type": "number",
+            "title": "\u05e2\u05de\u05d5\u05d3 \u05de\u05e7\u05d5\u05e8"
+          },
+          "sourceClause": {
+            "type": "string",
+            "title": "\u05e1\u05e2\u05d9\u05e3 \u05de\u05e7\u05d5\u05e8"
+          },
+          "sourceText": {
+            "type": "string",
+            "title": "\u05e0\u05d5\u05e1\u05d7 \u05de\u05e7\u05d5\u05e8\u05d9"
+          },
+          "plainExplanation": {
+            "type": "string",
+            "title": "\u05d4\u05e1\u05d1\u05e8 \u05d1\u05de\u05d9\u05dc\u05d9\u05dd \u05e4\u05e9\u05d5\u05d8\u05d5\u05ea"
+          },
+          "persons": {
+            "type": "array",
+            "title": "\u05d4\u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05dc\u05db\u05dc \u05de\u05d1\u05d5\u05d8\u05d7 \u05d1\u05db\u05d9\u05e1\u05d5\u05d9 \u05d6\u05d4",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "title": "\u05ea\u05d5\u05d5\u05d9\u05ea \u05d4\u05de\u05d1\u05d5\u05d8\u05d7"
+                },
+                "isCovered": {
+                  "type": "boolean",
+                  "title": "\u05de\u05db\u05d5\u05e1\u05d4",
+                  "default": true
+                },
+                "sumInsured": {
+                  "type": "string",
+                  "title": "\u05d4\u05e1\u05db\u05d5\u05dd \u05e9\u05d7\u05dc \u05e2\u05dc \u05de\u05d1\u05d5\u05d8\u05d7 \u05d6\u05d4"
+                },
+                "extensions": {
+                  "type": "string",
+                  "title": "\u05d4\u05e8\u05d7\u05d1\u05d5\u05ea/\u05d1\u05d7\u05d9\u05e8\u05d5\u05ea"
+                },
+                "sourcePage": {
+                  "type": "number",
+                  "title": "\u05e2\u05de\u05d5\u05d3 \u05de\u05e7\u05d5\u05e8 \u05dc\u05e2\u05de\u05d5\u05d3\u05d4 \u05d6\u05d5"
+                },
+                "sourceClause": {
+                  "type": "string",
+                  "title": "\u05e1\u05e2\u05d9\u05e3 \u05de\u05e7\u05d5\u05e8"
+                },
+                "sourceText": {
+                  "type": "string",
+                  "title": "\u05e0\u05d5\u05e1\u05d7 \u05de\u05e7\u05d5\u05e8\u05d9 \u05dc\u05e2\u05de\u05d5\u05d3\u05d4 \u05d6\u05d5"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "insurance_company",
+    "policy_type"
+  ]
+}

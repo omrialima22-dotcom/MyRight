@@ -27,6 +27,8 @@ export default function EligibilityExplore() {
   const [creatingInsurer, setCreatingInsurer] = useState(null);
   const [identityPolicy, setIdentityPolicy] = useState(null);
   const [sourceModal, setSourceModal] = useState(null);
+  const [requirements, setRequirements] = useState(null); // frozen requirement graph
+  const [knownUserFacts, setKnownUserFacts] = useState([]);
 
   const policiesMap = React.useMemo(() => {
     const m = {};
@@ -93,6 +95,7 @@ export default function EligibilityExplore() {
   const factsForRecalc = (currentAnswered) => {
     const map = {};
     pastFacts.forEach((f) => { map[f.fact_key] = f.value; });
+    knownUserFacts.forEach((f) => { map[f.fact_key] = f.value; });
     currentAnswered.forEach((f) => { map[f.fact_key] = f.value; });
     return Object.keys(map).map((k) => ({ fact_key: k, value: map[k] }));
   };
@@ -113,17 +116,22 @@ export default function EligibilityExplore() {
   const runRecalc = async (coverages, currentAnswered) => {
     setRecalcLoading(true);
     try {
-      const res = await base44.functions.invoke("recalcReviewPlan", {
-        coverages,
-        facts: factsForRecalc(currentAnswered),
-        event_summary: healthEvent?.summary || "",
-        event_story: healthEvent?.story || "",
-        event_answers: healthEvent?.answers || []
-      });
+      const payload = requirements
+        ? { requirements, facts: factsForRecalc(currentAnswered) }
+        : {
+            coverages,
+            facts: factsForRecalc(currentAnswered),
+            event_summary: healthEvent?.summary || "",
+            event_story: healthEvent?.story || "",
+            event_answers: healthEvent?.answers || []
+          };
+      const res = await base44.functions.invoke("recalcReviewPlan", payload);
       const data = res.data || res;
       if (data.error) {
         toast({ title: "עדכון התוכנית נכשל", description: data.error, variant: "destructive" });
       } else {
+        if (data.requirements) setRequirements(data.requirements);
+        if (data.known_user_facts) setKnownUserFacts(data.known_user_facts);
         const statusMap = {};
         (data.coverages || []).forEach((c) => { statusMap[c.key] = c; });
         setItems(coverages.map((c) => ({
@@ -155,6 +163,8 @@ export default function EligibilityExplore() {
           setItems([]);
           setPendingQuestions([]);
           setAnsweredFacts([]);
+          setRequirements(null);
+          setKnownUserFacts([]);
           setRecalcDone(false);
         }
         setIdentityPolicy(needIdentity[0]);
@@ -230,6 +240,8 @@ export default function EligibilityExplore() {
     setItems([]);
     setPendingQuestions([]);
     setAnsweredFacts([]);
+    setRequirements(null);
+    setKnownUserFacts([]);
     setRecalcDone(false);
     setIdentityPolicy(null);
   };
@@ -249,6 +261,8 @@ export default function EligibilityExplore() {
     setItems([]);
     setPendingQuestions([]);
     setAnsweredFacts([]);
+    setRequirements(null);
+    setKnownUserFacts([]);
     setRecalcDone(false);
   };
 

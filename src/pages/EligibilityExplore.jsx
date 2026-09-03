@@ -113,11 +113,13 @@ export default function EligibilityExplore() {
     } catch {}
   };
 
-  const runRecalc = async (coverages, currentAnswered) => {
+  const runRecalc = async (coverages, currentAnswered, reqOverride) => {
     setRecalcLoading(true);
     try {
-      const payload = requirements
-        ? { requirements, facts: factsForRecalc(currentAnswered) }
+      const activeRequirements = reqOverride !== undefined ? reqOverride : requirements;
+      const isFreezeCall = !activeRequirements;
+      const payload = activeRequirements
+        ? { requirements: activeRequirements, facts: factsForRecalc(currentAnswered) }
         : {
             coverages,
             facts: factsForRecalc(currentAnswered),
@@ -130,7 +132,17 @@ export default function EligibilityExplore() {
       if (data.error) {
         toast({ title: "עדכון התוכנית נכשל", description: data.error, variant: "destructive" });
       } else {
-        if (data.requirements) setRequirements(data.requirements);
+        if (data.requirements) {
+          setRequirements(data.requirements);
+          if (isFreezeCall && healthEvent?.id) {
+            try {
+              await base44.entities.HealthEvent.update(healthEvent.id, {
+                frozen_requirements: data.requirements,
+                frozen_items: coverages
+              });
+            } catch {}
+          }
+        }
         if (data.known_user_facts) setKnownUserFacts(data.known_user_facts);
         const statusMap = {};
         (data.coverages || []).forEach((c) => { statusMap[c.key] = c; });
@@ -172,6 +184,16 @@ export default function EligibilityExplore() {
       }
       if (discovering || recalcDone || items.length > 0) return;
       setIdentityPolicy(null);
+
+      if (
+        Array.isArray(healthEvent.frozen_requirements) && healthEvent.frozen_requirements.length > 0 &&
+        Array.isArray(healthEvent.frozen_items) && healthEvent.frozen_items.length > 0
+      ) {
+        setRequirements(healthEvent.frozen_requirements);
+        await runRecalc(healthEvent.frozen_items, [], healthEvent.frozen_requirements);
+        return;
+      }
+
       const its = await runDiscovery();
       setDiscovering(false);
       if (its && its.length > 0) {

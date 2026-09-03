@@ -120,6 +120,7 @@ export default async function(req) {
     ].join("\n");
 
     const allItems = [];
+    const needsIdentity = [];
 
     for (const policy of policies) {
       const coverages = Array.isArray(policy.coverages) ? policy.coverages : [];
@@ -127,6 +128,15 @@ export default async function(req) {
 
       const insurerName = policy.insurance_company || (policy.policy_metadata && policy.policy_metadata.insurerName) || '';
       const insuredPeople = Array.isArray(policy.insured_people) ? policy.insured_people : [];
+
+      // HARD GATE (logic-level): a multi-person policy with no confirmed identity
+      // must NOT produce user-specific eligibility results — only general structure
+      // may exist until the user confirms who they are.
+      if (insuredPeople.length > 1 && !policy.confirmed_insured_role) {
+        needsIdentity.push(policy.id);
+        continue;
+      }
+
       const selectedRole = policy.confirmed_insured_role || (insuredPeople[0] && insuredPeople[0].role) || null;
 
       // Filter to the selected insured person only; skip coverages they do not have.
@@ -215,7 +225,7 @@ export default async function(req) {
       }
     }
 
-    return Response.json({ items: allItems });
+    return Response.json({ items: allItems, needs_identity: needsIdentity });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

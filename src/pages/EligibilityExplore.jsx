@@ -145,15 +145,22 @@ export default function EligibilityExplore() {
   useEffect(() => {
     (async () => {
       if (loading || policies.length === 0 || !healthEvent) return;
-      if (discovering || recalcDone || items.length > 0) return;
       const needIdentity = policies.filter((p) => {
         const people = Array.isArray(p.insured_people) ? p.insured_people : [];
         return people.length > 1 && !p.confirmed_insured_role;
       });
       if (needIdentity.length > 0) {
+        // Invalidate any stale user-specific results produced before identity was confirmed.
+        if (items.length > 0 || pendingQuestions.length > 0 || recalcDone) {
+          setItems([]);
+          setPendingQuestions([]);
+          setAnsweredFacts([]);
+          setRecalcDone(false);
+        }
         setIdentityPolicy(needIdentity[0]);
         return;
       }
+      if (discovering || recalcDone || items.length > 0) return;
       setIdentityPolicy(null);
       const its = await runDiscovery();
       setDiscovering(false);
@@ -219,7 +226,30 @@ export default function EligibilityExplore() {
     } catch (e) {
       toast({ title: "שמירת הזיהוי נכשלה", description: e.message, variant: "destructive" });
     }
+    // Fresh rebuild: discard any prior person-specific results so discovery + recalc run clean.
+    setItems([]);
+    setPendingQuestions([]);
+    setAnsweredFacts([]);
+    setRecalcDone(false);
     setIdentityPolicy(null);
+  };
+
+  const changeIdentity = async (policyId) => {
+    try {
+      await base44.entities.Policy.update(policyId, {
+        confirmed_insured_role: null,
+        confirmed_insured_name: null,
+        confirmed_at: null
+      });
+      setPolicies((prev) => prev.map((p) => (p.id === policyId ? { ...p, confirmed_insured_role: null, confirmed_insured_name: null, confirmed_at: null } : p)));
+    } catch (e) {
+      toast({ title: "שגיאה בשינוי המבוטח", description: e.message, variant: "destructive" });
+      return;
+    }
+    setItems([]);
+    setPendingQuestions([]);
+    setAnsweredFacts([]);
+    setRecalcDone(false);
   };
 
   const preparePackage = async (insurer) => {
@@ -346,14 +376,25 @@ export default function EligibilityExplore() {
             <Button variant="outline" onClick={() => navigate("/policies")}>חזרה לפוליסות</Button>
           </div>
         ) : allReviewed ? (
-          <FinalSummary
-            items={items}
-            answeredCount={answeredCount}
-            onPreparePackage={preparePackage}
-            packageStatus={packageStatus}
-            onShowSource={(it) => setSourceModal(it)}
-            creatingInsurer={creatingInsurer}
-          />
+          <div>
+            {policies.some((p) => (Array.isArray(p.insured_people) ? p.insured_people.length : 0) > 1) && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {policies.filter((p) => (Array.isArray(p.insured_people) ? p.insured_people.length : 0) > 1).map((p) => (
+                  <Button key={p.id} variant="outline" size="sm" onClick={() => changeIdentity(p.id)}>
+                    שינוי מבוטח — {p.insurance_company || "פוליסה"}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <FinalSummary
+              items={items}
+              answeredCount={answeredCount}
+              onPreparePackage={preparePackage}
+              packageStatus={packageStatus}
+              onShowSource={(it) => setSourceModal(it)}
+              creatingInsurer={creatingInsurer}
+            />
+          </div>
         ) : currentQuestion ? (
           <GlobalQuestionFlow
             question={currentQuestion}

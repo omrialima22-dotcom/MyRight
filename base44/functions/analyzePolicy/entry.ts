@@ -177,27 +177,44 @@ export default async function(req) {
     await base44.entities.Policy.update(policy_id, update);
 
     // STAGE 2: identify coverages from the extracted text (grounded, no invention).
-    const contextText = buildContextText(documentSections);
+    // Long policies are split into batches so no chunk exceeds the LLM's reliable
+    // context window; batches run sequentially and are merged afterward.
+    const batches = buildContextBatches(documentSections);
     let coverages = [];
     let insuredPeople = [];
     let overallSummary = '';
 
-    if (contextText.trim()) {
+    const batchResults = [];
+    for (const batch of batches) {
+      const batchText = buildContextText(batch);
+      if (!batchText.trim()) continue;
       try {
         const llm = await base44.asServiceRole.integrations.Core.InvokeLLM({
-          prompt: buildCoveragesPrompt(contextText),
+          prompt: buildCoveragesPrompt(batchText),
           response_json_schema: COVERAGES_SCHEMA,
           model: 'automatic'
         });
         const result = (llm && typeof llm === 'object') ? llm : null;
         if (result) {
-          coverages = Array.isArray(result.coverages) ? result.coverages.map(normalizeCoverage) : [];
-          insuredPeople = Array.isArray(result.insuredPeople) ? result.insuredPeople.map(normalizeInsuredPerson) : [];
-          overallSummary = result.overallSummary || '';
+          batchResults.push({
+            coverages: Array.isArray(result.coverages) ? result.coverages.map(normalizeCoverage) : [],
+            insuredPeople: Array.isArray(result.insuredPeople) ? result.insuredPeople.map(normalizeInsuredPerson) : [],
+            overallSummary: result.overallSummary || ''
+          });
         }
       } catch {
-        // If Stage 2 fails, keep Stage 1 results; analysis uses fallback summary.
+        // If a batch fails, keep going with the rest; merged results use whatever succeeded.
       }
+    }
+
+    if (batchResults.length === 1) {
+      coverages = batchResults[0].coverages;
+      insuredPeople = batchResults[0].insuredPeople;
+      overallSummary = batchResults[0].overallSummary;
+    } else if (batchResults.length > 1) {
+      insuredPeople = mergeInsuredPeople(batchResults.map((r) => r.insuredPeople));
+      coverages = mergeCoverages(batchResults.map((r) => r.coverages));
+      // overallSummary intentionally left empty — buildFallbackSummary runs on the merged coverages below.
     }
 
     const analysis = overallSummary || buildFallbackSummary(policyMetadata, coverages, documentSections);
@@ -235,6 +252,83 @@ function buildContextText(sections) {
     const page = s.pageStart != null ? `=== עמוד ${s.pageStart} ===\n` : '';
     return page + s.text;
   }).join('\n\n');
+}
+
+const CONTEXT_BATCH_CHAR_LIMIT = 12000;
+
+// Group sections in order into batches, opening a new batch once the
+// accumulated text length would exceed the limit. A single section longer
+// than the limit gets its own batch rather than being cut mid-section.
+function buildContextBatches(sections) {
+  const batches = [];
+  let current = [];
+  let currentLen = 0;
+  for (const s of sections) {
+    const len = (s.text || '').length;
+    if (len > CONTEXT_BATCH_CHAR_LIMIT) {
+      if (current.length > 0) { batches.push(current); current = []; currentLen = 0; }
+      batches.push([s]);
+      continue;
+    }
+    if (current.length > 0 && currentLen + len > CONTEXT_BATCH_CHAR_LIMIT) {
+      batches.push(current);
+      current = [];
+      currentLen = 0;
+    }
+    current.push(s);
+    currentLen += len;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
+function normalizeName(s) {
+  return String(s || '').replace(/[\s\u200f\u200e\-–—,.:"'()]/g, '').toLowerCase();
+}
+
+// Merge insuredPeople across batches: same role → keep the highest-confidence
+// occurrence, first-seen wins on ties.
+function mergeInsuredPeople(peopleLists) {
+  const confidenceRank = { high: 3, medium: 2, low: 1 };
+  const byRole = new Map();
+  const order = [];
+  for (const list of peopleLists) {
+    for (const p of list) {
+      const role = p.role || '';
+      if (!byRole.has(role)) {
+        byRole.set(role, p);
+        order.push(role);
+      } else {
+        const existing = byRole.get(role);
+        if ((confidenceRank[p.confidence] || 0) > (confidenceRank[existing.confidence] || 0)) {
+          byRole.set(role, p);
+        }
+      }
+    }
+  }
+  return order.map((role) => byRole.get(role));
+}
+
+// Merge coverages across batches: same normalized name → merge persons/clauses
+// into the first occurrence instead of creating a duplicate coverage entry.
+function mergeCoverages(coverageLists) {
+  const merged = [];
+  const seen = {};
+  for (const list of coverageLists) {
+    for (const c of list) {
+      const norm = normalizeName(c.name);
+      if (!norm) { merged.push(c); continue; }
+      if (seen[norm] != null) {
+        const existing = merged[seen[norm]];
+        if (Array.isArray(c.persons)) existing.persons = [...(existing.persons || []), ...c.persons];
+        if (Array.isArray(c.clauses)) existing.clauses = [...(existing.clauses || []), ...c.clauses];
+        continue;
+      }
+      seen[norm] = merged.length;
+      merged.push(c);
+    }
+  }
+  return merged;
 }
 
 function buildCoveragesPrompt(contextText) {

@@ -75,7 +75,7 @@ ${coverageBlock}
         },
         required: ['items']
       },
-      model: 'automatic'
+      model: 'claude-sonnet-5'
     });
 
     const raw = Array.isArray(result?.items) ? result.items : [];

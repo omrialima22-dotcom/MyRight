@@ -72,6 +72,14 @@ export default async function(req) {
       return Response.json({ error: 'חובה לשלוח תיאור ראשוני' }, { status: 400 });
     }
 
+    if (Array.isArray(answers) && answers.length >= 8) {
+      return Response.json({
+        done: true,
+        progress_label: 'סיימנו לאסוף את המידע הראשוני',
+        summary: 'תיארת את האירוע ואת התקופה שאחריו — נמשיך משם'
+      });
+    }
+
     const systemPrompt = buildSystemPrompt(ROLE_INSTRUCTIONS);
 
     const qaBlock = (answers || [])

@@ -72,6 +72,20 @@
           }
         }
       }
+    },
+    "frozen_requirements": {
+      "type": "array",
+      "title": "גרף הדרישות הקפוא לבדיקת זכאות",
+      "items": {
+        "type": "object"
+      }
+    },
+    "frozen_items": {
+      "type": "array",
+      "title": "רשימת הכיסויים המקורית מה-discovery",
+      "items": {
+        "type": "object"
+      }
     }
   },
   "required": [

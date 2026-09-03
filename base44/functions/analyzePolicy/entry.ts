@@ -192,7 +192,7 @@ export default async function(req) {
         const llm = await base44.asServiceRole.integrations.Core.InvokeLLM({
           prompt: buildCoveragesPrompt(batchText),
           response_json_schema: COVERAGES_SCHEMA,
-          model: 'automatic'
+          model: 'claude-sonnet-5'
         });
         const result = (llm && typeof llm === 'object') ? llm : null;
         if (result) {

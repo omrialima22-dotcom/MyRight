@@ -220,10 +220,14 @@ export default async function(req) {
       // Filter to the selected insured person only; skip coverages they do not have.
       const coverageList = [];
       coverages.forEach((c, i) => {
-        const person = selectedRole && Array.isArray(c.persons)
-          ? (c.persons.find((p) => p.role === selectedRole) || null)
-          : null;
-        if (person && person.isCovered === false) return;
+        const persons = Array.isArray(c.persons) ? c.persons : [];
+        const person = selectedRole ? (persons.find((p) => p.role === selectedRole) || null) : null;
+        // A coverage is excluded for this person ONLY when the person/amount table
+        // was actually read for this coverage (someone has an amount) and this
+        // person's column is empty. When nothing was read for anyone, isCovered=false
+        // is an extraction artifact — dropping it would silently hide a real right.
+        const tableRead = persons.some((p) => p.sumInsured && String(p.sumInsured).trim());
+        if (person && person.isCovered === false && tableRead) return;
         coverageList.push({
           index: i,
           name: c.name || '',

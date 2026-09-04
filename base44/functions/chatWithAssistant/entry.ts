@@ -33,7 +33,7 @@ export default async function(req) {
 
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
-      model: 'automatic'
+      model: 'claude-sonnet-5'
     });
 
     const reply = typeof result === 'string' ? result : (result?.reply || String(result));

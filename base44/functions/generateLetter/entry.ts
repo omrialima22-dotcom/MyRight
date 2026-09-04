@@ -64,7 +64,7 @@ ${answersBlock}
 
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
-      model: 'automatic'
+      model: 'claude-sonnet-5'
     });
 
     return Response.json({ content: typeof result === 'string' ? result : result?.reply || String(result) });

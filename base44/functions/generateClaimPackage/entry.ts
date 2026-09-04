@@ -99,7 +99,7 @@ export default async function(req) {
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
       response_json_schema: SCHEMA,
-      model: 'automatic'
+      model: 'claude-sonnet-5'
     });
 
     const data = safeObj(result, { shared_documents: [], per_coverage: [], doctor_request: '', claim_letter: '' });

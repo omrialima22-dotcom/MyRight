@@ -100,7 +100,7 @@ export default async function(req) {
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
       response_json_schema: RESPONSE_SCHEMA,
-      model: 'claude-sonnet-5'
+      model: 'gemini_3_flash'
     });
 
     const data = typeof result === 'string' ? safeParse(result) : result;

@@ -91,6 +91,12 @@ const COVERAGES_SCHEMA = {
   }
 };
 
+// Model used for Stage 2 coverage extraction. Kept as a named constant so the
+// value that ran is visible in the batch-failure log below.
+// NOTE: 'gemini_3_pro' (used previously) is no longer listed in the Base44 SDK
+// model union; 'gemini_3_1_pro' is the currently documented Gemini Pro id.
+const COVERAGES_MODEL = 'gemini_3_1_pro';
+
 const UNREADABLE_MESSAGE =
   "לא הצלחנו לקרוא את תוכן הפוליסה בצורה אמינה. ייתכן שמדובר בקובץ סרוק ללא שכבת טקסט. כדי ש-MyRight תוכל לנתח את הפוליסה, מומלץ להעלות גרסה חיפושית (PDF עם שכבת טקסט) של המסמך. אנחנו לא רוצים לנחש עבורך.";
 
@@ -192,7 +198,7 @@ export default async function(req) {
         const llm = await base44.asServiceRole.integrations.Core.InvokeLLM({
           prompt: buildCoveragesPrompt(batchText),
           response_json_schema: COVERAGES_SCHEMA,
-          model: 'claude-sonnet-5'
+          model: COVERAGES_MODEL
         });
         const result = (llm && typeof llm === 'object') ? llm : null;
         if (result) {
@@ -202,8 +208,11 @@ export default async function(req) {
             overallSummary: result.overallSummary || ''
           });
         }
-      } catch {
-        // If a batch fails, keep going with the rest; merged results use whatever succeeded.
+      } catch (e) {
+        // If a batch fails, keep going with the rest; merged results use whatever
+        // succeeded. Log it — a silent failure here looks identical to "the policy
+        // simply had no coverages on those pages".
+        console.error(`Stage 2 batch failed (pages ${batch.map((s) => s.pageStart).join(',')}, model ${COVERAGES_MODEL}):`, e?.message || e);
       }
     }
 
@@ -343,6 +352,9 @@ function buildCoveragesPrompt(contextText) {
 - זהה אך ורק כיסויים שמופיעים בפועל בטקסט. אל תמציא כיסויים שלא מוזכרים.
 - פוליסות רבות מציגות טבלת מטריצה: שורות = כיסויים, עמודות = מבוטחים. חובה לשמור את הקשר שורה + עמודה + ערך. אל תשטח טבלה לערך גלובלי אחד שלא שייך לעמודה מסוימת.
 - לכל כיסוי, מלא persons: פריט לכל מבוטח עם הסכום/הבחירה שחלים עליו באותה עמודה. אם מבוטח מסוים לא מכוסה בכיסוי — isCovered=false.
+- שים לב: חילוץ הטקסט משטח טבלאות לרצף שורות. סכומי המטריצה מופיעים לרוב כשלשות חוזרות בסדר: סכום, ואחריו "ש\"ח", ואחריו תווית המבוטח שאליו הסכום שייך. למשל הרצף: 85000 / ש"ח / מועמד ראשי / 50000 / ש"ח / מועמד שני / 50000 / ש"ח / ילד 1 / 50000 / ש"ח / ילד 2 — פירושו מועמד ראשי=85000, מועמד שני=50000, ילד 1=50000, ילד 2=50000.
+- סמני סימון בודדים (•, Ο, C) עשויים להופיע באמצע הרצף הזה ולהפריד בין סכום לתווית שלו. התעלם מהם לצורך השיוך — הם מסמנים בחירה בטופס, ואינם מפרידים בין הסכום לתווית שאחריו.
+- ספור את הסכומים ואת התוויות: אל תדלג על סכום שמופיע בטקסט ואל תשאיר מבוטח ריק כל עוד נותר סכום לא משויך ברצף. תווית שאין אחריה סכום (למשל "ש\"ח" ללא מספר) פירושה שהמבוטח הזה לא מכוסה — רק אז isCovered=false.
 - הפרד בין productMaximum (תקרת מוצר / מקסימום כללי) לבין הסכום האישי של מבוטח ב-persons[].sumInsured. אל תכניס תקרת מוצר כסכום של מבוטח.
 - לכל ערך ועמודה, ציין sourcePage ו-sourceText מהמסמך כדי שניתן יהיה להצביע על המקור.
 - plainExplanation: הסבר קצר בעברית פשוטה וברורה.

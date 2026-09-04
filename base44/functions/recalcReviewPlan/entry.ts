@@ -264,18 +264,22 @@ function coverageStatuses(requirements, values) {
     reqs.forEach((r) => {
       if (!evalCondition(r.condition, values)) return; // inactive conditional ignored
       if (!isResolved(values, r.fact_key)) {
-        allResolved = false;
         if (isUncertain(values[r.fact_key])) {
           // Uncertainty is not a rejection — it stays an open item to verify.
+          allResolved = false;
           missing.push(r.fact_key);
           reason = reason || 'צריך לוודא פרט אחד כדי לדעת אם זה רלוונטי';
         } else if (r.fact_type === 'USER_FACT') {
+          // Only a missing USER answer keeps the coverage undecided — the user
+          // can still supply it.
+          allResolved = false;
           missing.push(r.fact_key);
-        } else if (r.fact_type === 'POLICY_FACT') {
-          missing.push(r.fact_key);
-          reason = reason || 'חסר נתון מהפוליסה — יש לאמת אותו במסמך';
         } else {
-          reason = reason || 'חסר נתון שנדרש כדי להשלים את החישוב';
+          // A policy detail we couldn't extract (or a computation missing its
+          // inputs) must NEVER hide a coverage from the user — the document is
+          // ours to verify, not theirs to answer. Note it and move on.
+          missing.push(r.fact_key);
+          reason = reason || 'כדאי לאמת פרט אחד במסמך הפוליסה';
         }
       } else if (isComparableExpectation(r) && !condEq(values[r.fact_key], r.expected)) {
         notRelevant = true;
@@ -478,8 +482,13 @@ export default async function(req) {
     const known = Array.isArray(data.known_user_facts) ? data.known_user_facts : [];
 
     // Freeze marker.
+    // The model tends to copy `derive`/`derive_params` onto every requirement,
+    // including plain user answers and policy details. Keep them only where they
+    // belong, so nothing is mistaken for a computation.
     const frozenRequirements = reqs.map((r) => ({
       ...r,
+      derive: r.fact_type === 'DERIVED_FACT' ? r.derive : undefined,
+      derive_params: r.fact_type === 'DERIVED_FACT' ? r.derive_params : undefined,
       fact_type: r.fact_type || 'USER_FACT',
       coverage_keys: Array.isArray(r.coverage_keys) ? r.coverage_keys : [],
       depends_on: Array.isArray(r.depends_on) ? r.depends_on : [],

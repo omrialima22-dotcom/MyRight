@@ -43,18 +43,58 @@ function parseDate(raw) {
   return isNaN(dt.getTime()) ? null : dt;
 }
 
+// An answer that expresses uncertainty is NOT a "no". It must never fail a
+// coverage — it only means we still don't know.
+const UNCERTAIN_PATTERNS = ['לא בטוח', 'לא בטוחה', 'לא יודע', 'לא יודעת', 'לא זוכר', 'לא זוכרת', 'אולי', 'לא ידוע', 'לא רלוונטי לי'];
+
+function isUncertain(v) {
+  if (v == null) return false;
+  const s = String(v).trim().toLowerCase();
+  if (!s) return false;
+  return UNCERTAIN_PATTERNS.some((p) => s.includes(p));
+}
+
 function normalizeBool(v) {
   if (v == null) return null;
   const s = String(v).trim().toLowerCase();
-  if (['כן', 'yes', 'true', '1'].includes(s)) return 'true';
-  if (['לא', 'no', 'false', '0'].includes(s)) return 'false';
+  if (!s) return null;
+  if (isUncertain(s)) return null;
+  if (['yes', 'true', '1'].includes(s)) return 'true';
+  if (['no', 'false', '0'].includes(s)) return 'false';
+  // Hebrew answers often arrive as a full phrase ("כן, אושפזתי לשבועיים").
+  if (/^כן\b/.test(s) || /^כן[,\s.–-]/.test(s) || s === 'כן') return 'true';
+  if (/^לא\b/.test(s) || /^לא[,\s.–-]/.test(s) || s === 'לא') return 'false';
   return null;
+}
+
+// Extract a day count from free text: "90", "90 ימים", "3 חודשים", "שנה".
+function parseDays(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  const n = Number(s);
+  if (!isNaN(n) && s !== '') return n;
+  const m = s.match(/(\d+(?:\.\d+)?)/);
+  if (!m) {
+    if (/שנה/.test(s)) return 365;
+    if (/חודש/.test(s)) return 30;
+    return null;
+  }
+  const num = Number(m[1]);
+  if (/שנ/.test(s)) return num * 365;
+  if (/חוד/.test(s)) return num * 30;
+  if (/שבוע/.test(s)) return num * 7;
+  return num;
 }
 
 function condEq(a, b) {
   const na = normalizeBool(a), nb = normalizeBool(b);
   if (na != null && nb != null) return na === nb;
-  return String(a ?? '') === String(b ?? '');
+  const sa = String(a ?? '').trim().toLowerCase();
+  const sb = String(b ?? '').trim().toLowerCase();
+  if (sa === sb) return true;
+  // Tolerate phrasing differences ("כן, במשך חודשיים" vs "כן").
+  if (sa && sb && (sa.startsWith(sb) || sb.startsWith(sa))) return true;
+  return false;
 }
 
 function factValueMap(facts) {
@@ -123,8 +163,8 @@ function computeDerived(req, values) {
       const base = parseDate(values[p.base_fact]);
       if (!date || !base) return null;
       let offset = null;
-      if (p.offset_fact != null && values[p.offset_fact] != null) offset = Number(values[p.offset_fact]);
-      else if (p.offset_days != null) offset = Number(p.offset_days);
+      if (p.offset_fact != null && values[p.offset_fact] != null) offset = parseDays(values[p.offset_fact]);
+      else if (p.offset_days != null) offset = parseDays(p.offset_days);
       if (offset == null || isNaN(offset)) return null;
       const threshold = new Date(base.getTime() + offset * 86400000);
       return date >= threshold ? 'true' : 'false';
@@ -150,8 +190,13 @@ function computeDerived(req, values) {
   }
 }
 
-function isResolved(values, key) {
+function isAnswered(values, key) {
   return values[key] != null && values[key] !== '';
+}
+
+// Resolved = answered AND not an uncertain answer.
+function isResolved(values, key) {
+  return isAnswered(values, key) && !isUncertain(values[key]);
 }
 
 // Resolve the full fact value map: seed policy facts + user facts, then compute
@@ -184,7 +229,7 @@ function buildPending(requirements, values) {
     if (r.fact_type !== 'USER_FACT') return;
     if (seen[r.fact_key]) return;
     if (!evalCondition(r.condition, values)) return;     // inactive conditional
-    if (isResolved(values, r.fact_key)) return;          // already answered
+    if (isAnswered(values, r.fact_key)) return;          // already answered (incl. "לא בטוח") — never re-ask
     seen[r.fact_key] = true;
     pending.push(r);
   });
@@ -208,15 +253,21 @@ function coverageStatuses(requirements, values) {
       if (!evalCondition(r.condition, values)) return; // inactive conditional ignored
       if (!isResolved(values, r.fact_key)) {
         allResolved = false;
-        if (r.fact_type === 'USER_FACT') missing.push(r.fact_key);
-        else if (r.fact_type === 'POLICY_FACT' && r.policy_fact_needs_verification) {
+        if (isUncertain(values[r.fact_key])) {
+          // Uncertainty is not a rejection — it stays an open item to verify.
           missing.push(r.fact_key);
-          reason = reason || 'יש לאמת נתון מהפוליסה';
+          reason = reason || 'צריך לוודא פרט אחד כדי לדעת אם זה רלוונטי';
+        } else if (r.fact_type === 'USER_FACT') {
+          missing.push(r.fact_key);
+        } else if (r.fact_type === 'POLICY_FACT') {
+          missing.push(r.fact_key);
+          reason = reason || 'חסר נתון מהפוליסה — יש לאמת אותו במסמך';
+        } else {
+          reason = reason || 'חסר נתון שנדרש כדי להשלים את החישוב';
         }
-        // DERIVED_FACT unresolved (missing inputs) → stays unknown, never asked
-      } else if (r.expected != null && !condEq(values[r.fact_key], r.expected)) {
+      } else if (r.expected != null && String(r.expected).trim() !== '' && !condEq(values[r.fact_key], r.expected)) {
         notRelevant = true;
-        reason = reason || `התשובה ל-${r.fact_key} אינה תואמת את התנאי בפוליסה`;
+        reason = reason || 'לפי מה שמסרת, התנאי שהפוליסה דורשת לכיסוי הזה לא מתקיים';
       }
     });
     let status = 'unknown';

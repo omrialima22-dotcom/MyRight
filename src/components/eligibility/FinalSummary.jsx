@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import InsurerCard from "@/components/eligibility/InsurerCard";
+import PendingChecksCard from "@/components/eligibility/PendingChecksCard";
 
 export default function FinalSummary({ items, answeredCount, onPreparePackage, packageStatus, onShowSource, creatingInsurer }) {
   const [showAll, setShowAll] = useState(false);
@@ -14,7 +15,7 @@ export default function FinalSummary({ items, answeredCount, onPreparePackage, p
   const insurers = Array.from(new Set(potential.map((it) => it.insurer || "חברת ביטוח")));
   const byInsurer = (name) => potential.filter((it) => (it.insurer || "חברת ביטוח") === name);
 
-  const hasUnresolved = notRelevant.length > 0 || missingInfo.length > 0;
+  const indirectCount = potential.filter((it) => it.relevance === "indirect").length;
 
   return (
     <div className="space-y-6">
@@ -39,11 +40,20 @@ export default function FinalSummary({ items, answeredCount, onPreparePackage, p
           {potential.length} {potential.length === 1 ? "זכות אפשרית אחת" : "זכויות אפשריות"}
         </p>
         <p className="text-center text-sm text-muted-foreground">שכדאי להתקדם איתן</p>
+        {indirectCount > 0 && (
+          <p className="text-center text-sm text-accent mt-2 leading-relaxed">
+            מתוכן {indirectCount} שעלו בעקבות ההשלכות של מה שתיארת — לא מהתיאור עצמו
+          </p>
+        )}
       </div>
 
       {potential.length === 0 ? (
         <div className="bg-card rounded-2xl border border-dashed border-border p-8 text-center">
-          <p className="text-muted-foreground">לפי המידע שמסרת, לא מצאנו כיסויים שעשויים להיות רלוונטיים כרגע.</p>
+          <p className="text-muted-foreground">
+            {missingInfo.length > 0
+              ? "עדיין לא סגרנו אף כיסוי — חסרים פרטים בכיסויים שלמטה. זה לא אומר שלא מגיע לך."
+              : "לפי המידע שמסרת, לא מצאנו כיסויים שעשויים להיות רלוונטיים כרגע."}
+          </p>
         </div>
       ) : (
         <>
@@ -64,8 +74,11 @@ export default function FinalSummary({ items, answeredCount, onPreparePackage, p
         </>
       )}
 
+      {/* Coverages that are still open — shown, never hidden */}
+      <PendingChecksCard items={missingInfo} onShowSource={onShowSource} />
+
       {/* Additional checks */}
-      {hasUnresolved && (
+      {notRelevant.length > 0 && (
         <div className="bg-card rounded-2xl border border-border p-5">
           <button
             onClick={() => setShowAll(!showAll)}
@@ -76,17 +89,16 @@ export default function FinalSummary({ items, answeredCount, onPreparePackage, p
           </button>
           {!showAll && (
             <div className="mt-3 text-sm text-muted-foreground space-y-1">
-              {notRelevant.length > 0 && <p>{notRelevant.length} כיסויים — כנראה לא רלוונטיים לפי המידע שנמסר</p>}
-              {missingInfo.length > 0 && <p>{missingInfo.length} כיסוי — דורש מידע נוסף</p>}
+              <p>{notRelevant.length} כיסויים — כנראה לא רלוונטיים לפי המידע שנמסר</p>
             </div>
           )}
           {showAll && (
             <div className="mt-3 space-y-2 animate-fade-up">
-              {[...notRelevant, ...missingInfo].map((it) => (
+              {notRelevant.map((it) => (
                 <div key={it.key} className="text-sm border border-border rounded-xl p-3">
                   <p className="font-medium text-foreground/90 break-words">{it.coverage_name}</p>
-                  <p className={`mt-1 ${it.status === "unknown" ? "text-amber-700" : "text-muted-foreground"}`}>
-                    {it.status === "unknown" ? "חסר מידע" : "כנראה לא רלוונטי"}
+                  <p className="mt-1 text-muted-foreground break-words">
+                    {it.explanation || "כנראה לא רלוונטי"}
                   </p>
                 </div>
               ))}

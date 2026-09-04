@@ -11,7 +11,12 @@ const SCHEMA = {
         type: "object",
         properties: {
           coverage_name: { type: "string", description: "שם הכיסוי הקנוני" },
-          relevant: { type: "boolean", description: "האם עשוי להיות רלוונטי לאירוע" },
+          relevance: {
+            type: "string",
+            enum: ["direct", "indirect", "unlikely"],
+            description: "direct = נובע ישירות מהאירוע שהמשתמש תיאר. indirect = עשוי להיות רלוונטי בעקבות השלכה אפשרית של אירוע כזה, גם אם המשתמש לא הזכיר אותה. unlikely = אין קשר סביר."
+          },
+          pathway: { type: "string", description: "שם ההשלכה (pathway) שבגללה הכיסוי נבדק. ריק כשה-relevance הוא direct." },
           relevance_reason: { type: "string" },
           policy_requirements: { type: "string" },
           conditions: { type: "string", description: "תנאי הזכאות של הכיסוי — מועתק/ממוזג מהקלט" },
@@ -48,7 +53,7 @@ const SCHEMA = {
             }
           }
         },
-        required: ["coverage_name", "relevant"]
+        required: ["coverage_name", "relevance"]
       }
     }
   },
@@ -63,10 +68,13 @@ const RULES = [
   "- אל תפצל כיסוי אחד למספר פריטים. סעיף מקור אינו זכות נפרדת.",
   "- שמור כיסויים שונים באמת כפריטים נפרדים (למשל שני כיסויי סרטן שהפוליסה מתייחסת אליהם כשני מוצרים נפרדים).",
   "",
-  "כללי רלוונטיות:",
-  "- לעולם אל תקבע זכאות. 'רלוונטי' = יש קשר אפשרי, לא שהמשתמש זכאי. אסור 'מגיע לך', 'אתה זכאי', 'מגיע לך כסף'.",
-  "- relevant=true רק אם יש קשר ענייני ברור בין תנאי הכיסוי לאירוע. אחרת relevant=false.",
-  "- relevance_reason ו-policy_requirements מבוססים על טקסט הכיסוי ותיאור האירוע. אל תמציא.",
+  "כללי רלוונטיות (קריטי — כאן נמצא הערך של המערכת):",
+  "- לעולם אל תקבע זכאות. 'רלוונטי' = שווה לבדוק, לא שהמשתמש זכאי. אסור 'מגיע לך', 'אתה זכאי', 'מגיע לך כסף'.",
+  "- relevance='direct': הכיסוי נוגע ישירות למה שהמשתמש תיאר (למשל אבחנה שמופיעה בכיסוי מחלות קשות).",
+  "- relevance='indirect': הכיסוי נוגע לאחת ההשלכות האפשריות שקיבלת ברשימת ההשלכות — גם אם המשתמש לא הזכיר אותה בכלל. זו הקטגוריה החשובה ביותר: המשתמש לא יודע לבדוק לבד שאירוע כזה עלול להוביל לצורך בעזרה יומיומית, לאובדן כושר עבודה, לניתוח, לתרופה מחוץ לסל וכו'. אם קיים בפוליסה כיסוי שנוגע להשלכה כזו — סמן indirect וציין ב-pathway את שם ההשלכה.",
+  "- relevance='unlikely' רק כשאין שום קשר סביר לא לאירוע ולא לאף אחת מההשלכות. אל תשתמש בזה רק כי המשתמש לא הזכיר משהו — היעדר אזכור אינו שלילה.",
+  "- אל תניח שההשלכה קרתה. עבור indirect, ה-questions חייבות לכלול קודם כל שאלה עובדתית שמבררת אם ההשלכה אכן התרחשה (למשל 'האם בתקופה הזאת היית זקוק לעזרה של אדם אחר בפעולות יומיומיות כמו רחצה או הלבשה?').",
+  "- relevance_reason: הסבר בעברית פשוטה למה שווה לבדוק. ב-indirect פתח בקישור: 'בעקבות מה שתיארת, ייתכן ש…'.",
   "- questions: שאלות עובדתיות ניתנות לבדיקה. העדף answer_type=quick עם 2-4 אפשרויות.",
   "",
   "כללי סכומים (קריטי):",
@@ -81,6 +89,46 @@ function safeObj(result, fallback) {
   if (typeof result === 'string') { try { return JSON.parse(result); } catch { return fallback; } }
   return fallback;
 }
+
+// Stage 0 — consequence expansion. Generic for ANY event the user describes
+// (illness, accident, injury, surgery): derives the consequence pathways that
+// events of this kind commonly lead to, so coverages can be checked against
+// them too — not only against the words the user happened to write.
+const PATHWAYS_SCHEMA = {
+  type: "object",
+  properties: {
+    event_kind: { type: "string", description: "סוג האירוע בקצרה: מחלה / תאונה / פגיעה / ניתוח / אחר" },
+    main_finding: { type: "string", description: "האבחנה או הפגיעה המרכזית כפי שהמשתמש תיאר אותה" },
+    pathways: {
+      type: "array",
+      description: "ההשלכות האפשריות של אירוע מהסוג הזה — כולל כאלה שהמשתמש לא הזכיר.",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "שם ההשלכה בעברית פשוטה, למשל 'צורך בעזרה בפעולות יומיום', 'אובדן כושר עבודה', 'ניתוח', 'תרופה מחוץ לסל', 'שיקום', 'נכות תפקודית'" },
+          why: { type: "string", description: "משפט קצר למה אירוע כזה עלול להוביל להשלכה הזאת" },
+          likelihood: { type: "string", enum: ["typical", "possible"], description: "typical = נפוץ באירועים מסוג זה. possible = ייתכן." },
+          user_reported: { type: "boolean", description: "true רק אם המשתמש עצמו תיאר את ההשלכה במפורש" }
+        },
+        required: ["name", "likelihood", "user_reported"]
+      }
+    }
+  },
+  required: ["pathways"]
+};
+
+const PATHWAYS_RULES = [
+  "משימתך: להסיק מה אירוע כזה עלול לגרור, כדי שנדע מה לבדוק בפוליסה.",
+  "",
+  "כללים:",
+  "- אל תגביל את עצמך למה שהמשתמש כתב. משתמשים מתארים את האבחנה או התאונה, ולא יודעים אילו השלכות פותחות זכויות ביטוחיות. בדיוק שם הערך שלנו.",
+  "- הסק על בסיס ידע רפואי-תפקודי כללי מה אירוע מהסוג הזה עלול לגרור. עבוד כך לכל סוג אירוע: מחלה, תאונת דרכים, תאונת עבודה, פגיעה אורתופדית, אירוע לב/מוח, ניתוח, וכו'.",
+  "- כסה תחומי השלכה רלוונטיים כמו: צורך בעזרה בפעולות יומיום ותלות תפקודית, אובדן או פגיעה בכושר עבודה, ניתוחים והתייעצויות, אשפוז, טיפולים אמבולטוריים, תרופות שאינן בסל, השתלות וטיפולים בחו״ל, שיקום והחלמה, אביזרים ועזרים, נכות זמנית או קבועה, פגיעה נפשית נלווית.",
+  "- כלול רק השלכות שסבירות לאירוע שתואר. אל תמציא רשימה גנרית שאינה קשורה.",
+  "- likelihood='typical' כשההשלכה נפוצה באירועים כאלה, 'possible' כשהיא אפשרית.",
+  "- user_reported=true רק כשהמשתמש כתב זאת במפורש. לעולם אל תסיק שההשלכה קרתה בפועל — אנחנו רק מסמנים מה כדאי לבדוק.",
+  "- הכל בעברית פשוטה."
+].join("\n");
 
 function normalizeName(s) {
   return String(s || '').replace(/[\s\u200f\u200e\-–—,.:"'()]/g, '').toLowerCase();
@@ -118,6 +166,32 @@ export default async function(req) {
         ? ("--- שאלות ותשובות מהשאלון ---\n" + event.answers.map(a => `ש: ${a.question}\nת: ${a.answer}`).join("\n"))
         : ""
     ].join("\n");
+
+    // STAGE 0 — derive the consequence pathways once, shared by all policies.
+    let pathways = [];
+    try {
+      const pw = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        prompt: [
+          buildSystemPrompt("אתה מסיק מה אירוע רפואי או תאונה עלולים לגרור, לצורך בדיקת כיסויים בפוליסה."),
+          "",
+          eventBlock,
+          "",
+          PATHWAYS_RULES
+        ].join("\n"),
+        response_json_schema: PATHWAYS_SCHEMA,
+        model: 'claude-sonnet-5'
+      });
+      const pwData = safeObj(pw, { pathways: [] });
+      pathways = Array.isArray(pwData.pathways) ? pwData.pathways : [];
+    } catch { /* discovery continues without expansion */ }
+
+    const pathwaysBlock = pathways.length
+      ? [
+          "--- השלכות אפשריות של אירוע מסוג זה (הוסקו על ידי המערכת, לא נאמרו בהכרח על ידי המשתמש) ---",
+          JSON.stringify(pathways, null, 2),
+          "בדוק כל כיסוי בפוליסה גם מול ההשלכות האלה, לא רק מול מה שהמשתמש כתב במפורש."
+        ].join("\n")
+      : "";
 
     const allItems = [];
     const needsIdentity = [];
@@ -169,10 +243,12 @@ export default async function(req) {
         "",
         eventBlock,
         "",
+        pathwaysBlock,
+        "",
         `--- כיסויים שנמצאו בפוליסה עבור המבוטח "${selectedRole || 'מבוטח ראשי'}" (${insurerName || 'חברת ביטוח'}) ---`,
         JSON.stringify(coverageList, null, 2),
         "",
-        "לכל כיסוי בפועל, החזר פריט קנוני אחד (ממוזג אם יש כפילויות). החלט relevant. מלא relevance_reason, policy_requirements, conditions ו-questions.",
+        "לכל כיסוי בפועל, החזר פריט קנוני אחד (ממוזג אם יש כפילויות). קבע relevance (direct / indirect / unlikely) ומלא pathway, relevance_reason, policy_requirements, conditions ו-questions.",
         RULES
       ].join("\n");
 
@@ -189,7 +265,7 @@ export default async function(req) {
       const deduped = [];
       const seen = {};
       for (const it of its) {
-        if (it.relevant === false) continue;
+        if (it.relevance === 'unlikely') continue;
         const norm = normalizeName(it.coverage_name);
         if (!norm) { deduped.push(it); continue; }
         if (seen[norm] != null) {
@@ -210,6 +286,8 @@ export default async function(req) {
           policy_id: policy.id,
           insurer: insurerName,
           coverage_name: it.coverage_name || '',
+          relevance: it.relevance === 'indirect' ? 'indirect' : 'direct',
+          pathway: it.pathway || '',
           relevance_reason: it.relevance_reason || '',
           policy_requirements: it.policy_requirements || '',
           conditions: it.conditions || '',
@@ -225,7 +303,7 @@ export default async function(req) {
       }
     }
 
-    return Response.json({ items: allItems, needs_identity: needsIdentity });
+    return Response.json({ items: allItems, needs_identity: needsIdentity, pathways });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

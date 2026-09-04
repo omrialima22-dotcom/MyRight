@@ -92,37 +92,43 @@ export default function EligibilityExplore() {
     return null;
   };
 
-  const factsForRecalc = (currentAnswered) => {
+  // dropKeys = answers that were discarded when the user went back and changed an
+  // earlier answer. They must disappear from the fact base too, otherwise the
+  // engine keeps computing with answers the user no longer sees.
+  const factsForRecalc = (currentAnswered, dropKeys = []) => {
     const map = {};
     pastFacts.forEach((f) => { map[f.fact_key] = f.value; });
     knownUserFacts.forEach((f) => { map[f.fact_key] = f.value; });
+    dropKeys.forEach((k) => { delete map[k]; });
     currentAnswered.forEach((f) => { map[f.fact_key] = f.value; });
     return Object.keys(map).map((k) => ({ fact_key: k, value: map[k] }));
   };
 
-  const persistFacts = async (currentAnswered) => {
+  const persistFacts = async (currentAnswered, dropKeys = []) => {
     if (!healthEvent?.id) return;
     const map = {};
     pastFacts.forEach((f) => { map[f.fact_key] = f.value; });
+    dropKeys.forEach((k) => { delete map[k]; });
     currentAnswered.forEach((f) => { map[f.fact_key] = f.value; });
     const facts = Object.keys(map).map((k) => ({
       fact_key: k, value: map[k], certainty: "confirmed", source: "user"
     }));
     try {
       await base44.entities.HealthEvent.update(healthEvent.id, { facts });
+      setHealthEvent((prev) => (prev ? { ...prev, facts } : prev));
     } catch {}
   };
 
-  const runRecalc = async (coverages, currentAnswered, reqOverride) => {
+  const runRecalc = async (coverages, currentAnswered, reqOverride, dropKeys = []) => {
     setRecalcLoading(true);
     try {
       const activeRequirements = reqOverride !== undefined ? reqOverride : requirements;
       const isFreezeCall = !activeRequirements;
       const payload = activeRequirements
-        ? { requirements: activeRequirements, facts: factsForRecalc(currentAnswered) }
+        ? { requirements: activeRequirements, facts: factsForRecalc(currentAnswered, dropKeys) }
         : {
             coverages,
-            facts: factsForRecalc(currentAnswered),
+            facts: factsForRecalc(currentAnswered, dropKeys),
             event_summary: healthEvent?.summary || "",
             event_story: healthEvent?.story || "",
             event_answers: healthEvent?.answers || []
@@ -214,8 +220,10 @@ export default function EligibilityExplore() {
 
   const handleContinue = async (answer) => {
     let newAnswered;
+    let dropKeys = [];
     if (editIndex != null) {
       const idx = editIndex;
+      dropKeys = answeredFacts.slice(idx + 1).map((f) => f.fact_key);
       newAnswered = answeredFacts.slice(0, idx + 1);
       newAnswered[idx] = { ...answeredFacts[idx], value: answer };
       setAnsweredFacts(newAnswered);
@@ -232,8 +240,8 @@ export default function EligibilityExplore() {
       }];
       setAnsweredFacts(newAnswered);
     }
-    await persistFacts(newAnswered);
-    await runRecalc(items, newAnswered);
+    await persistFacts(newAnswered, dropKeys);
+    await runRecalc(items, newAnswered, undefined, dropKeys);
   };
 
   const handleBack = () => {

@@ -8,6 +8,7 @@ import PolicyRoster from "@/components/analysis/PolicyRoster";
 import DiscoveryFeed from "@/components/analysis/DiscoveryFeed";
 import AnalysisComplete from "@/components/analysis/AnalysisComplete";
 import AnalysisFailure from "@/components/analysis/AnalysisFailure";
+import IdentityStep from "@/components/eligibility/IdentityStep";
 import { Button } from "@/components/ui/button";
 import {
   deriveStage,
@@ -107,10 +108,33 @@ export default function LiveAnalysis() {
   const showComplete = complete && !stalled;
   const showStalled = stalled && !complete;
 
+  // Family / multi-insured policy → ask who the user is before showing results.
+  const identityPolicy = policies.find(
+    (p) =>
+      p.extraction_status === "success" &&
+      Array.isArray(p.insured_people) &&
+      p.insured_people.length > 1 &&
+      !p.confirmed_insured_role
+  );
+
+  const confirmIdentity = async (role, name) => {
+    const updated = {
+      confirmed_insured_role: role,
+      confirmed_insured_name: name || "",
+      confirmed_at: new Date().toISOString()
+    };
+    try {
+      await base44.entities.Policy.update(identityPolicy.id, updated);
+    } catch { /* keep the UI moving; the eligibility flow re-asks if it failed */ }
+    setPolicies((prev) => prev.map((p) => (p.id === identityPolicy.id ? { ...p, ...updated } : p)));
+  };
+
   return (
     <Layout>
       <div className="max-w-2xl mx-auto px-5 py-8 sm:py-12">
-        {showComplete ? (
+        {showComplete && identityPolicy ? (
+          <IdentityStep policy={identityPolicy} onConfirm={confirmIdentity} />
+        ) : showComplete ? (
           <div className="space-y-4">
             <AnalysisComplete
               policies={policies}

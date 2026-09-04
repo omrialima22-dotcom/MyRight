@@ -10,6 +10,7 @@ import AnalysisComplete from "@/components/analysis/AnalysisComplete";
 import AnalysisFailure from "@/components/analysis/AnalysisFailure";
 import IdentityStep from "@/components/eligibility/IdentityStep";
 import { Button } from "@/components/ui/button";
+import { drivePolicy } from "@/lib/drivePolicyAnalysis";
 import {
   deriveStage,
   progressStates,
@@ -20,7 +21,7 @@ import {
 } from "@/lib/analysis";
 
 const POLL_INTERVAL = 3000;
-const MAX_POLLS = 90; // ~4.5 min safety net before declaring a stall
+const MAX_POLLS = 220; // ~11 min safety net — a long policy is read in several saved stages
 
 export default function LiveAnalysis() {
   const navigate = useNavigate();
@@ -56,13 +57,7 @@ export default function LiveAnalysis() {
       setLoading(false);
       if (!triggeredRef.current) {
         triggeredRef.current = true;
-        initial
-          .filter((p) => p.extraction_status === "pending")
-          .forEach((p) => {
-            base44.functions
-              .invoke("analyzePolicy", { policy_id: p.id })
-              .catch(() => {});
-          });
+        initial.forEach((p) => { drivePolicy(p.id); });
       }
     })();
     return () => {
@@ -159,13 +154,9 @@ export default function LiveAnalysis() {
                   const stuck = policies.filter(
                     (p) => !["success", "unreadable", "failed"].includes(p.extraction_status)
                   );
-                  await Promise.all(
-                    stuck.map((p) =>
-                      base44.functions.invoke("analyzePolicy", { policy_id: p.id }).catch(() => {})
-                    )
-                  );
                   pollsRef.current = 0;
                   setStalled(false);
+                  stuck.forEach((p) => { drivePolicy(p.id); });
                   setPolicies(await fetchAll());
                 }}
               >

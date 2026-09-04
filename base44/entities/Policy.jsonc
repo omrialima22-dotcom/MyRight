@@ -1,6 +1,6 @@
 {
-  "name": "Policy",
   "type": "object",
+  "name": "Policy",
   "properties": {
     "insurance_company": {
       "type": "string",
@@ -8,6 +8,7 @@
     },
     "policy_type": {
       "type": "string",
+      "title": "\u05e1\u05d5\u05d2 \u05d1\u05d9\u05d8\u05d5\u05d7",
       "enum": [
         "health",
         "life",
@@ -17,7 +18,6 @@
         "disability",
         "other"
       ],
-      "title": "\u05e1\u05d5\u05d2 \u05d1\u05d9\u05d8\u05d5\u05d7",
       "default": "health"
     },
     "policy_number": {
@@ -26,13 +26,13 @@
     },
     "start_date": {
       "type": "string",
-      "format": "date",
-      "title": "\u05ea\u05d0\u05e8\u05d9\u05da \u05ea\u05d7\u05d9\u05dc\u05ea \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4"
+      "title": "\u05ea\u05d0\u05e8\u05d9\u05da \u05ea\u05d7\u05d9\u05dc\u05ea \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4",
+      "format": "date"
     },
     "end_date": {
       "type": "string",
-      "format": "date",
-      "title": "\u05ea\u05d0\u05e8\u05d9\u05da \u05e1\u05d9\u05d5\u05dd \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4"
+      "title": "\u05ea\u05d0\u05e8\u05d9\u05da \u05e1\u05d9\u05d5\u05dd \u05d4\u05e4\u05d5\u05dc\u05d9\u05e1\u05d4",
+      "format": "date"
     },
     "coverage_amount": {
       "type": "number",
@@ -56,6 +56,7 @@
     },
     "extraction_status": {
       "type": "string",
+      "title": "\u05e1\u05d8\u05d8\u05d5\u05e1 \u05e7\u05e8\u05d9\u05d0\u05ea \u05d4\u05de\u05e1\u05de\u05da",
       "enum": [
         "pending",
         "processing",
@@ -63,12 +64,31 @@
         "unreadable",
         "failed"
       ],
-      "title": "\u05e1\u05d8\u05d8\u05d5\u05e1 \u05e7\u05e8\u05d9\u05d0\u05ea \u05d4\u05de\u05e1\u05de\u05da",
       "default": "pending"
     },
     "extraction_issues": {
       "type": "string",
       "title": "\u05d4\u05e2\u05e8\u05d5\u05ea \u05e2\u05dc \u05d0\u05d9\u05db\u05d5\u05ea \u05d4\u05e7\u05e8\u05d9\u05d0\u05d4"
+    },
+    "analysis_stage": {
+      "type": "string",
+      "title": "\u05e9\u05dc\u05d1 \u05d4\u05e0\u05d9\u05ea\u05d5\u05d7 \u05d4\u05e0\u05d5\u05db\u05d7\u05d9",
+      "enum": [
+        "reading",
+        "coverages",
+        "done"
+      ],
+      "description": "reading = \u05e7\u05e8\u05d9\u05d0\u05ea \u05d4\u05de\u05e1\u05de\u05da, coverages = \u05d6\u05d9\u05d4\u05d5\u05d9 \u05db\u05d9\u05e1\u05d5\u05d9\u05d9\u05dd \u05dc\u05e4\u05d9 \u05de\u05e7\u05d8\u05e2\u05d9\u05dd, done = \u05d4\u05e1\u05ea\u05d9\u05d9\u05dd"
+    },
+    "batch_cursor": {
+      "type": "number",
+      "title": "\u05de\u05e7\u05d8\u05e2 \u05d4\u05db\u05d9\u05e1\u05d5\u05d9\u05d9\u05dd \u05d4\u05d1\u05d0 \u05dc\u05e2\u05d9\u05d1\u05d5\u05d3",
+      "default": 0
+    },
+    "batch_total": {
+      "type": "number",
+      "title": "\u05de\u05e1\u05e4\u05e8 \u05d4\u05de\u05e7\u05d8\u05e2\u05d9\u05dd \u05d4\u05db\u05d5\u05dc\u05dc",
+      "default": 0
     },
     "policy_metadata": {
       "type": "object",
@@ -258,6 +278,27 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "batch_diagnostics": {
+      "type": "array",
+      "title": "\u05d0\u05d1\u05d7\u05d5\u05df \u05d7\u05d9\u05dc\u05d5\u05e5 \u05d4\u05db\u05d9\u05e1\u05d5\u05d9\u05d9\u05dd \u05dc\u05db\u05dc batch",
+      "items": {
+        "type": "object",
+        "properties": {
+          "batch_pages": {
+            "type": "string",
+            "title": "\u05e2\u05de\u05d5\u05d3\u05d9 \u05d4-batch"
+          },
+          "success": {
+            "type": "boolean",
+            "title": "\u05d4\u05d0\u05dd \u05d4-batch \u05d4\u05d7\u05d6\u05d9\u05e8 \u05ea\u05d5\u05e6\u05d0\u05d4 \u05e9\u05de\u05d9\u05e9\u05d4"
+          },
+          "reason": {
+            "type": "string",
+            "title": "\u05e1\u05d9\u05d1\u05ea \u05d4\u05db\u05e9\u05dc, \u05d0\u05d5 \u05e1\u05d9\u05db\u05d5\u05dd \u05e7\u05e6\u05e8 \u05d1\u05d4\u05e6\u05dc\u05d7\u05d4"
           }
         }
       }

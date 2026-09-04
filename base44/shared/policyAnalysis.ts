@@ -62,7 +62,7 @@ export const COVERAGES_SCHEMA = {
   }
 };
 
-export const COVERAGES_MODEL = 'gemini_3_1_pro';
+export const COVERAGES_MODEL = 'claude-sonnet-5';
 
 // Batch size: small enough that a handful of batches finish comfortably inside
 // one request window.

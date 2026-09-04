@@ -190,31 +190,38 @@ export default async function(req) {
     let insuredPeople = [];
     let overallSummary = '';
 
-    const batchResults = [];
-    for (const batch of batches) {
-      const batchText = buildContextText(batch);
-      if (!batchText.trim()) continue;
-      try {
-        const llm = await base44.asServiceRole.integrations.Core.InvokeLLM({
-          prompt: buildCoveragesPrompt(batchText),
+    // Batches are independent, so they run in PARALLEL — sequential runs made a
+    // multi-page policy take minutes. Order is preserved by Promise.allSettled.
+    const activeBatches = batches.filter((b) => buildContextText(b).trim());
+    const settled = await Promise.allSettled(
+      activeBatches.map((batch) =>
+        base44.asServiceRole.integrations.Core.InvokeLLM({
+          prompt: buildCoveragesPrompt(buildContextText(batch)),
           response_json_schema: COVERAGES_SCHEMA,
           model: COVERAGES_MODEL
-        });
-        const result = (llm && typeof llm === 'object') ? llm : null;
-        if (result) {
-          batchResults.push({
-            coverages: Array.isArray(result.coverages) ? result.coverages.map(normalizeCoverage) : [],
-            insuredPeople: Array.isArray(result.insuredPeople) ? result.insuredPeople.map(normalizeInsuredPerson) : [],
-            overallSummary: result.overallSummary || ''
-          });
-        }
-      } catch (e) {
-        // If a batch fails, keep going with the rest; merged results use whatever
-        // succeeded. Log it — a silent failure here looks identical to "the policy
-        // simply had no coverages on those pages".
-        console.error(`Stage 2 batch failed (pages ${batch.map((s) => s.pageStart).join(',')}, model ${COVERAGES_MODEL}):`, e?.message || e);
+        })
+      )
+    );
+
+    const batchResults = [];
+    settled.forEach((s, i) => {
+      if (s.status !== 'fulfilled') {
+        // A failed batch must not kill the rest — but it must be visible, since a
+        // silent failure looks identical to "no coverages on those pages".
+        console.error(
+          `Stage 2 batch failed (pages ${activeBatches[i].map((x) => x.pageStart).join(',')}, model ${COVERAGES_MODEL}):`,
+          s.reason?.message || s.reason
+        );
+        return;
       }
-    }
+      const result = (s.value && typeof s.value === 'object') ? s.value : null;
+      if (!result) return;
+      batchResults.push({
+        coverages: Array.isArray(result.coverages) ? result.coverages.map(normalizeCoverage) : [],
+        insuredPeople: Array.isArray(result.insuredPeople) ? result.insuredPeople.map(normalizeInsuredPerson) : [],
+        overallSummary: result.overallSummary || ''
+      });
+    });
 
     if (batchResults.length === 1) {
       coverages = batchResults[0].coverages;

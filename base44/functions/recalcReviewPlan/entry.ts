@@ -190,6 +190,18 @@ function computeDerived(req, values) {
   }
 }
 
+// An `expected` value may only reject a coverage when it is genuinely comparable:
+// a yes/no expectation, or a computed DERIVED_FACT (true/false). Dates and free
+// text can never be rejected by string equality — that produced false
+// "not relevant" results (e.g. a real diagnosis_date compared to a phrase).
+function isComparableExpectation(r) {
+  const exp = r.expected;
+  if (exp == null || String(exp).trim() === '') return false;
+  if (r.answer_type === 'date' || /_date$/.test(String(r.fact_key || ''))) return false;
+  if (r.fact_type === 'DERIVED_FACT') return true;
+  return normalizeBool(exp) != null;
+}
+
 function isAnswered(values, key) {
   return values[key] != null && values[key] !== '';
 }
@@ -265,7 +277,7 @@ function coverageStatuses(requirements, values) {
         } else {
           reason = reason || 'חסר נתון שנדרש כדי להשלים את החישוב';
         }
-      } else if (r.expected != null && String(r.expected).trim() !== '' && !condEq(values[r.fact_key], r.expected)) {
+      } else if (isComparableExpectation(r) && !condEq(values[r.fact_key], r.expected)) {
         notRelevant = true;
         reason = reason || 'לפי מה שמסרת, התנאי שהפוליסה דורשת לכיסוי הזה לא מתקיים';
       }

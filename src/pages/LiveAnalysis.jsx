@@ -154,6 +154,23 @@ export default function LiveAnalysis() {
               אנחנו עדיין עובדים על המסמכים. אפשר להמתין, או לחזור לרשימת הפוליסות ולהמשיך משם.
             </p>
             <div className="flex justify-center gap-2">
+              <Button
+                onClick={async () => {
+                  const stuck = policies.filter(
+                    (p) => !["success", "unreadable", "failed"].includes(p.extraction_status)
+                  );
+                  await Promise.all(
+                    stuck.map((p) =>
+                      base44.functions.invoke("analyzePolicy", { policy_id: p.id }).catch(() => {})
+                    )
+                  );
+                  pollsRef.current = 0;
+                  setStalled(false);
+                  setPolicies(await fetchAll());
+                }}
+              >
+                נסה לקרוא שוב
+              </Button>
               <Button variant="outline" onClick={() => navigate("/policies")}>
                 חזרה לפוליסות
               </Button>

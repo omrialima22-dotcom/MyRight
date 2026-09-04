@@ -224,12 +224,20 @@ export default async function(req) {
     });
 
     if (batchResults.length === 1) {
+      const { people } = mergeInsuredPeopleWithAliases([batchResults[0].insuredPeople]);
+      insuredPeople = people;
       coverages = batchResults[0].coverages;
-      insuredPeople = batchResults[0].insuredPeople;
       overallSummary = batchResults[0].overallSummary;
     } else if (batchResults.length > 1) {
-      insuredPeople = mergeInsuredPeople(batchResults.map((r) => r.insuredPeople));
-      coverages = mergeCoverages(batchResults.map((r) => r.coverages));
+      const { people, roleAlias } = mergeInsuredPeopleWithAliases(batchResults.map((r) => r.insuredPeople));
+      insuredPeople = people;
+      const remappedCoverageLists = batchResults.map((r) =>
+        r.coverages.map((c) => ({
+          ...c,
+          persons: (c.persons || []).map((p) => ({ ...p, role: roleAlias[p.role] || p.role }))
+        }))
+      );
+      coverages = mergeCoverages(remappedCoverageLists).map(dedupeCoveragePersons);
       // overallSummary intentionally left empty — buildFallbackSummary runs on the merged coverages below.
     }
 
@@ -302,27 +310,36 @@ function normalizeName(s) {
   return String(s || '').replace(/[\s\u200f\u200e\-–—,.:"'()]/g, '').toLowerCase();
 }
 
-// Merge insuredPeople across batches: same role → keep the highest-confidence
-// occurrence, first-seen wins on ties.
-function mergeInsuredPeople(peopleLists) {
+// Merge insuredPeople across batches. Different batches sometimes label the
+// same person differently (e.g. "ילד 1" vs "ילד ראשון", "מועמד ראשי" vs "מבוטח
+// ראשי") — so dedup is keyed by normalized fullName when available (the
+// reliable identity), falling back to role text only when no name was found.
+// Also returns a role-alias map so coverage persons[] (which reference roles
+// by string) can be remapped onto the surviving canonical role.
+function mergeInsuredPeopleWithAliases(peopleLists) {
   const confidenceRank = { high: 3, medium: 2, low: 1 };
-  const byRole = new Map();
+  const byKey = new Map();
   const order = [];
+  const roleAlias = {};
   for (const list of peopleLists) {
     for (const p of list) {
-      const role = p.role || '';
-      if (!byRole.has(role)) {
-        byRole.set(role, p);
-        order.push(role);
+      const nameKey = normalizeName(p.fullName);
+      const key = nameKey || normalizeName(p.role) || p.role || '';
+      if (!byKey.has(key)) {
+        byKey.set(key, p);
+        order.push(key);
       } else {
-        const existing = byRole.get(role);
+        const existing = byKey.get(key);
         if ((confidenceRank[p.confidence] || 0) > (confidenceRank[existing.confidence] || 0)) {
-          byRole.set(role, p);
+          byKey.set(key, p);
+        } else if (!existing.fullName && p.fullName) {
+          existing.fullName = p.fullName;
         }
       }
+      roleAlias[p.role || ''] = byKey.get(key).role || '';
     }
   }
-  return order.map((role) => byRole.get(role));
+  return { people: order.map((key) => byKey.get(key)), roleAlias };
 }
 
 // Merge coverages across batches: same normalized name → merge persons/clauses
@@ -345,6 +362,20 @@ function mergeCoverages(coverageLists) {
     }
   }
   return merged;
+}
+
+// After role-alias remapping, a coverage may end up with two persons[] rows
+// for the same canonical role. Keep the one carrying real data (a sumInsured)
+// over an empty duplicate.
+function dedupeCoveragePersons(c) {
+  if (!Array.isArray(c.persons) || c.persons.length <= 1) return c;
+  const byRole = new Map();
+  for (const p of c.persons) {
+    const key = p.role || '';
+    const existing = byRole.get(key);
+    if (!existing || (!existing.sumInsured && p.sumInsured)) byRole.set(key, p);
+  }
+  return { ...c, persons: Array.from(byRole.values()) };
 }
 
 function buildCoveragesPrompt(contextText) {

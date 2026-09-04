@@ -120,10 +120,12 @@ export default async function(req) {
     await base44.entities.Policy.update(policy_id, { extraction_status: 'processing', extraction_issues: '' });
 
     // STAGE 1: read the actual PDF.
+    const stage1Start = Date.now();
     const read = await base44.asServiceRole.integrations.Core.ExtractDataFromUploadedFile({
       file_url: policy.file_url,
       json_schema: READ_SCHEMA
     });
+    console.log(`Stage 1 (read PDF) took ${Date.now() - stage1Start}ms`);
 
     if (!read || read.status !== 'success' || !read.output) {
       await base44.entities.Policy.update(policy_id, {
@@ -193,6 +195,7 @@ export default async function(req) {
     // Batches are independent, so they run in PARALLEL — sequential runs made a
     // multi-page policy take minutes. Order is preserved by Promise.allSettled.
     const activeBatches = batches.filter((b) => buildContextText(b).trim());
+    const stage2Start = Date.now();
     const settled = await Promise.allSettled(
       activeBatches.map((batch) =>
         base44.asServiceRole.integrations.Core.InvokeLLM({
@@ -202,6 +205,7 @@ export default async function(req) {
         })
       )
     );
+    console.log(`Stage 2 (${activeBatches.length} batches, model ${COVERAGES_MODEL}) took ${Date.now() - stage2Start}ms`);
 
     const batchResults = [];
     settled.forEach((s, i) => {
@@ -278,7 +282,12 @@ function buildContextText(sections) {
   }).join('\n\n');
 }
 
-const CONTEXT_BATCH_CHAR_LIMIT = 12000;
+// Smaller batches = more of them, but since they all run in PARALLEL, the
+// total wall time is set by the SLOWEST batch, not their sum. A lower limit
+// keeps each batch's prompt/output small, which cuts that slowest-batch time
+// substantially on long policies, without reducing the amount of source text
+// each coverage is grounded in per page.
+const CONTEXT_BATCH_CHAR_LIMIT = 6000;
 
 // Group sections in order into batches, opening a new batch once the
 // accumulated text length would exceed the limit. A single section longer

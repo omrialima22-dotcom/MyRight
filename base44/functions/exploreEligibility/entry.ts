@@ -147,10 +147,11 @@ export default async function(req) {
     else if (policy_id) ids = [policy_id];
     if (ids.length === 0) return Response.json({ error: 'חסר מזהה פוליסה' }, { status: 400 });
 
-    const policies = [];
-    for (const pid of ids) {
-      try { const p = await base44.entities.Policy.get(pid); if (p) policies.push(p); } catch {}
-    }
+    // Policies are fetched in PARALLEL — a sequential loop added a round-trip per policy.
+    const fetched = await Promise.allSettled(ids.map((pid) => base44.entities.Policy.get(pid)));
+    const policies = fetched
+      .filter((r) => r.status === 'fulfilled' && r.value)
+      .map((r) => r.value);
     if (policies.length === 0) return Response.json({ error: 'פוליסה לא נמצאה' }, { status: 404 });
 
     let event = null;
@@ -196,9 +197,12 @@ export default async function(req) {
     const allItems = [];
     const needsIdentity = [];
 
-    for (const policy of policies) {
+    // Each policy is analyzed INDEPENDENTLY, so they run in PARALLEL — running them
+    // one after another made the wait grow linearly with the number of policies.
+    const analyzePolicyItems = async (policy) => {
+      const localItems = [];
       const coverages = Array.isArray(policy.coverages) ? policy.coverages : [];
-      if (coverages.length === 0) continue;
+      if (coverages.length === 0) return localItems;
 
       const insurerName = policy.insurance_company || (policy.policy_metadata && policy.policy_metadata.insurerName) || '';
       const insuredPeople = Array.isArray(policy.insured_people) ? policy.insured_people : [];
@@ -208,7 +212,7 @@ export default async function(req) {
       // may exist until the user confirms who they are.
       if (insuredPeople.length > 1 && !policy.confirmed_insured_role) {
         needsIdentity.push(policy.id);
-        continue;
+        return localItems;
       }
 
       const selectedRole = policy.confirmed_insured_role || (insuredPeople[0] && insuredPeople[0].role) || null;
@@ -236,7 +240,7 @@ export default async function(req) {
           personRole: selectedRole || ''
         });
       });
-      if (coverageList.length === 0) continue;
+      if (coverageList.length === 0) return localItems;
 
       const prompt = [
         buildSystemPrompt("אתה עוזר ביטוחי שממזג כיסויים כפולים ובודק רלוונטיות אפשרית מול אירוע בריאותי."),
@@ -281,7 +285,7 @@ export default async function(req) {
 
       let ci = 0;
       for (const it of deduped) {
-        allItems.push({
+        localItems.push({
           key: `${policy.id}::${ci++}`,
           policy_id: policy.id,
           insurer: insurerName,
@@ -301,7 +305,14 @@ export default async function(req) {
           clauses: Array.isArray(it.clauses) ? it.clauses : []
         });
       }
-    }
+      return localItems;
+    };
+
+    const perPolicy = await Promise.allSettled(policies.map(analyzePolicyItems));
+    perPolicy.forEach((r) => {
+      if (r.status === 'fulfilled') allItems.push(...r.value);
+      else console.error('exploreEligibility policy failed:', r.reason?.message || r.reason);
+    });
 
     return Response.json({ items: allItems, needs_identity: needsIdentity, pathways });
   } catch (error) {

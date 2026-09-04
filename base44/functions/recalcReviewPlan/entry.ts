@@ -407,7 +407,7 @@ export default async function(req) {
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
       response_json_schema: FREEZE_SCHEMA,
-      model: 'automatic'
+      model: 'claude-sonnet-5'
     });
 
     const data = safeObj(result, { requirements: [], known_user_facts: [] });

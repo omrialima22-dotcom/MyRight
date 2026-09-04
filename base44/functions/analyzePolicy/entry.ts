@@ -196,8 +196,8 @@ export default async function(req) {
     // multi-page policy take minutes. Order is preserved by Promise.allSettled.
     const activeBatches = batches.filter((b) => buildContextText(b).trim());
     const stage2Start = Date.now();
-    const settled = await Promise.allSettled(
-      activeBatches.map((batch) =>
+    const settled = await runPooled(activeBatches, STAGE2_CONCURRENCY, (batch) =>
+      withRetry(() =>
         base44.asServiceRole.integrations.Core.InvokeLLM({
           prompt: buildCoveragesPrompt(buildContextText(batch)),
           response_json_schema: COVERAGES_SCHEMA,
@@ -317,6 +317,41 @@ function buildContextBatches(sections) {
 
 function normalizeName(s) {
   return String(s || '').replace(/[\s\u200f\u200e\-–—,.:"'()]/g, '').toLowerCase();
+}
+
+// Firing EVERY batch at once looked fastest, but a long policy then opened dozens
+// of simultaneous LLM calls and hit provider rate limits — batches failed and the
+// analysis came back empty/failed. A bounded pool keeps the parallelism that made
+// it fast while staying inside the limits.
+const STAGE2_CONCURRENCY = 4;
+
+async function runPooled(items, limit, task) {
+  const results = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      try {
+        results[i] = { status: 'fulfilled', value: await task(items[i]) };
+      } catch (e) {
+        results[i] = { status: 'rejected', reason: e };
+      }
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+// One retry with a short backoff — a single transient rate-limit response should
+// not silently erase a whole page range of coverages.
+async function withRetry(fn) {
+  try {
+    return await fn();
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 2000));
+    return await fn();
+  }
 }
 
 // Merge insuredPeople across batches. Different batches sometimes label the
